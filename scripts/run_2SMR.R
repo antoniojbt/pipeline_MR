@@ -28,9 +28,22 @@ Options:
   --exposure <exposure_file>      Exposure input file name
   --outcome <outcome_file>        Outcome input file name
   -O <OUTPUT_FILE>                Output file name
-  --session                       R session if to be saved
+  --run-clumping <BOOL>           Clump SNPs with TwoSampleMR [default: TRUE].
+  --clump-kb <num>                TwoSampleMR clump_data() parameter [default: 10000].
+  --clump-r2 <num>                TwoSampleMR clump_data() parameter [default: 0.001].
+  --clump-p1 <num>                TwoSampleMR clump_data() parameter [default: 1].
+  --clump-p2 <num>                TwoSampleMR clump_data() parameter [default: 1].
+  --action <int>                  TwoSampleMR action to take for harmonising [default: 2].
+  --egger-robust <BOOL>           TwoSampleMR mr_egger() parameter [default: FALSE]
+  --egger-penalized <BOOL>        TwoSampleMR mr_egger() parameter [default: FALSE]
+  --egger-distribution <chr>      TwoSampleMR mr_egger() parameter [default: normal]
+  --egger-alpha <num>             TwoSampleMR mr_egger() parameter [default: 0.05]
+  --OUTLIERtest <BOOL>            TwoSampleMR mr_egger() parameter [default: TRUE]
+  --DISTORTIONtest <BOOL>         TwoSampleMR mr_egger() parameter [default: TRUE]
+  --NbDistribution <int>          TwoSampleMR mr_egger() parameter [default: 1000]
+  --SignifThreshold <num>         TwoSampleMR mr_egger() parameter [default: 0.05]
+  --session                       R session if to be saved [default: NULL]
   -h --help                       Show this screen
-  -var                            some numeric argument [default: 0.001].
 
 Input:
 
@@ -50,6 +63,7 @@ Requirements:
 Documentation
 =============
 
+    Defaults are those set by the relevant packages called (TwoSampleMR, MendelianRandomization, etc.)
     For more information see:
 
     |url|
@@ -68,12 +82,11 @@ str(args)
 ##########
 # TO DO:
 
-# TO DO: check
 # Get proxy SNPs for exposure data first, then match to outcome data, then clump
 # (remove weaker instruments in LD) and harmonise
 # Currently matching without proxy SNPs
 
-# TO DO:
+
 # function to make table from:
 # mr_all_BMI_on_CHD.tsv
 # single_SNP_wald_BMI_on_CHD.tsv
@@ -87,16 +100,12 @@ str(args)
 # Other results are:
 # mr_all_plots_BMI_on_CHD.svg
 
-# TO DO: pass as arg:
-# Others depending on how much flexibility to give:
-# TwoSampleMR::clump_data() # more important
-# TwoSampleMR::harmonise_data() 'action' arg # more important
-# TwoSampleMR::mr_method_list() # hardcoded, currently all but radial
-# MendelianRandomization::mr_egger() # save defaults to legend or log
-# MRPRESSO::mr_presso # save defaults to legend or log
 
-# TO DO: check as Parsa files not consistent in naming
-# TO DO: check clumping Ville did at R2 of 0.1 is correct
+# pass as arg:
+# TwoSampleMR::mr_method_list() # hardcoded, currently all but radial
+
+# check as Parsa files not consistent in naming
+# check clumping Ville did at R2 of 0.1 is correct
 ##########
 
 ######################
@@ -154,8 +163,7 @@ library(MendelianRandomization)
 library(TwoSampleMR)
 
 # source functions from a different R script:
-#source(file.path(Rscripts_dir, 'moveme.R')) #, chdir = TRUE)
-source(file.path(Rscripts_dir, 'ggtheme.R'))
+# source(file.path(Rscripts_dir, 'ggtheme.R'))
 ######################
 
 ######################
@@ -234,28 +242,39 @@ if (is.null(args[['-O']])) { # arg is NULL
 
 ######################
 ##########
-# TO DO: continue here
+# First add warning(), stop(), if/else according to number of SNPs
+# then move each section as a separate function to pipeMR if needed
 # Clump SNPs:
-# TO DO: pass as args:
 # Currently defaults are set
-exp_data <- TwoSampleMR::clump_data(dat = exp_data,
-                                    clump_kb = 10000,
-                                    clump_r2 = 0.001,
-                                    clump_p1 = 1,
-                                    clump_p2 = 1
-)
+# Set up args:
+clump_kb <- as.numeric(args[['--clump-kb']])
+clump_r2 <- as.numeric(args[['--clump-r2']])
+clump_p1 <- as.numeric(args[['--clump-p1']])
+clump_p2 <- as.numeric(args[['--clump-p2']])
+
+if (isTRUE(args[['--run-clump']])) { # clumping required
+  exp_data <- TwoSampleMR::clump_data(dat = exp_data,
+                                    clump_kb = clump_kb,
+                                    clump_r2 = clump_r2,
+                                    clump_p1 = clump_p1,
+                                    clump_p2 = clump_p2
+                                    )
+} else{
+  warning('Clumping set to false.')
+}
 head(exp_data)
 dim(exp_data)
 
 
+
 # Harmonise and clean up (this merges files as well):
-# TO DO: pass as args:
 # Current are defaults
+action <- as.numeric(args[['--action']])
 harmonised <- TwoSampleMR::harmonise_data(exposure_dat = exp_data,
                                           outcome_dat = out_data,
-                                          action = 2 # 2=infer positive strand alleles,
+                                          action = action # 2=infer positive strand alleles,
                                           # using AF for palindromes
-)
+                                          )
 head(harmonised)
 dim(harmonised)
 
@@ -319,8 +338,7 @@ methods_list <- c("mr_wald_ratio", # single SNP only
                   "mr_simple_mode_nome",
                   "mr_raps", # needs the mr.raps package
                   "mr_sign",
-                  "mr_uwr"
-)
+                  "mr_uwr")
 
 results_mr_all <- TwoSampleMR::mr(harmonised, method_list = methods_list)
 results_mr_all
@@ -333,16 +351,18 @@ res_all_OR_and_CIs
 # res_radial
 
 # Save to file:
-filename <- sprintf('mr_all_%s_on_%s.txt', outfile_name_exp, outfile_name_out)
-filename
+filename <- sprintf('mr_all_%s.txt',
+                    output_file_prefix
+                    )
+print('Saving main MR analysis to:')
+print(filename)
 episcout::epi_write(res_all_OR_and_CIs, filename)
 ##########
 
 ##########
 # Convert to MendelianRandomization package to get more tests:
 # Largely already provided above
-# TO DO: get args
-# TO DO: errors when passing to MR package
+# Errors when passing to MR package
 # twoSMR_to_MR_pack <- TwoSampleMR::dat_to_MRInput(dat = harmonised,
 #                                                  get_correlations = FALSE
 #                                                  )
@@ -360,28 +380,34 @@ class(twoSMR_to_MR_pack)
 twoSMR_to_MR_pack
 
 # Get I^2 statistic:
+# Set up args:
+egger_robust <- as.character(args[['--egger-robust']])
+egger_penalized <- as.character(args[['--egger-penalized']])
+egger_distribution <- as.character(args[['--egger-distribution']])
+egger_alpha <- as.numeric(args[['--egger-alpha']])
+
 egger <- MendelianRandomization::mr_egger(twoSMR_to_MR_pack,
-                                          robust = FALSE,
-                                          penalized = FALSE,
-                                          distribution = "normal",
-                                          alpha = 0.05
-)
+                                          robust = egger_robust, # FALSE
+                                          penalized = egger_penalized, # FALSE
+                                          distribution = egger_distribution, # "normal"
+                                          alpha = egger_alpha # 0.05
+                                          )
 class(egger)
 str(egger)
 
 # Save to file:
-filename <- sprintf('egger_i_squared_%s_on_%s.txt',
-                    outfile_name_exp,
-                    outfile_name_out
-)
-filename
+filename <- sprintf('egger_i2_%s.txt',
+                    output_file_prefix
+                    )
+print('Saving Egger analysis to:')
+print(filename)
 cat("MR Egger test from MendelianRandomization package to obtain I-squared\n",
     file = filename
-)
+    )
 capture.output(egger,
                file = filename,
                append = TRUE
-)
+               )
 # NOTE:
 # If egger object is NULL, cat will print NULL to file
 ##########
@@ -398,18 +424,18 @@ hetero_meths <- c("mr_two_sample_ml",
                   # TO DO:
                   # "mr_ivw_radial", # requires package ‘RadialMR’
                   "mr_uwr"
-)
+                  )
 
 hetero_all <- TwoSampleMR::mr_heterogeneity(harmonised,
                                             method_list = hetero_meths
-)
+                                            )
 hetero_all
 # Save to file:
-filename <- sprintf('heterogeneity_%s_on_%s.txt',
-                    outfile_name_exp,
-                    outfile_name_out
-)
-filename
+filename <- sprintf('heterogeneity_%s.txt',
+                    output_file_prefix
+                    )
+print('Saving heterogeneity analysis to:')
+print(filename)
 episcout::epi_write(hetero_all, filename)
 # NOTE:
 # empty data.tables get saved as empty files
@@ -419,11 +445,11 @@ episcout::epi_write(hetero_all, filename)
 pleio <- TwoSampleMR::mr_pleiotropy_test(harmonised)
 pleio
 # Save to file:
-filename <- sprintf('pleiotropy_%s_on_%s.txt',
-                    outfile_name_exp,
-                    outfile_name_out
-)
-filename
+filename <- sprintf('pleiotropy_%s.txt',
+                    output_file_prefix
+                    )
+print('Saving pleiotropy analysis to:')
+print(filename)
 episcout::epi_write(pleio, filename)
 # NOTE:
 # empty data.tables get saved as empty files
@@ -435,15 +461,15 @@ res_single <- TwoSampleMR::mr_singlesnp(harmonised,
                                         single_method = "mr_wald_ratio",
                                         all_method = c("mr_ivw",
                                                        "mr_egger_regression"
+                                                       )
                                         )
-)
 res_single
 # Save to file:
-filename <- sprintf('single_SNP_wald_%s_on_%s.txt',
-                    outfile_name_exp,
-                    outfile_name_out
-)
-filename
+filename <- sprintf('single_SNP_wald_%s.txt',
+                    output_file_prefix
+                    )
+print('Saving single SNP analysis to:')
+print(filename)
 episcout::epi_write(res_single, filename)
 # NOTE:
 # empty data.tables get saved as empty files
@@ -456,11 +482,11 @@ res_loo <- TwoSampleMR::mr_leaveoneout(harmonised)
 # )
 res_loo
 # Save to file:
-filename <- sprintf('loo_IVW_%s_on_%s.txt',
-                    outfile_name_exp,
-                    outfile_name_out
-)
-filename
+filename <- sprintf('loo_IVW_%s.txt',
+                    output_file_prefix
+                    )
+print('Saving leave one out analysis to:')
+print(filename)
 episcout::epi_write(res_loo, filename)
 # NOTE:
 # empty data.tables get saved as empty files
@@ -470,70 +496,77 @@ episcout::epi_write(res_loo, filename)
 # Unsure what this does:
 TwoSampleMR::enrichment(harmonised)
 
-# TO DO: add error catch
-# # Test that the exposure is upstream of the outcome:
-# # TO DO: will error if not enough instruments
-# steiger <- TwoSampleMR::directionality_test(harmonised)
-# steiger
-# # Save to file:
-# filename <- sprintf('steiger_%s_on_%s.txt',
-#                     outfile_name_exp,
-#                     outfile_name_out
-#                     )
-# filename
-# episcout::epi_write(steiger, filename)
-# # NOTE:
-# # empty data.tables get saved as empty files
+# Test that the exposure is upstream of the outcome:
+if (dim(harmonised)[1] > 1) {
+  steiger <- TwoSampleMR::directionality_test(harmonised)
+  steiger
+  # Save to file:
+  filename <- sprintf('steiger_%s.txt',
+                      output_file_prefix
+                      )
+  print('Saving Steiger test to:')
+  print(filename)
+  episcout::epi_write(steiger, filename)
+  } else{
+    warning('Too few instruments to run Steiger test, skipping.')
+}
 ##########
 
 ##########
-# TO DO: add error catch
-# # Run MRPRESSO for outlier detection:
-# # Input:
-# MRPRESSO_input <- data.frame(beta_exposure = harmonised$beta.exposure,
-#                              se_exposure = harmonised$se.exposure,
-#                              beta_outcome = harmonised$beta.outcome,
-#                              se_outcome = harmonised$se.outcome,
-#                              row.names = harmonised$SNP
-#                              )
-# names(MRPRESSO_input)
-# MRPRESSO_input
-#
-# # TO DO: will error if not enough instruments
-# MRPRESSO <- MRPRESSO::mr_presso(BetaOutcome = "beta_outcome",
-#                                 BetaExposure = "beta_exposure",
-#                                 SdOutcome = "se_outcome",
-#                                 SdExposure = "se_exposure",
-#                                 OUTLIERtest = TRUE,
-#                                 DISTORTIONtest = TRUE,
-#                                 data = MRPRESSO_input,
-#                                 NbDistribution = 1000,
-#                                 SignifThreshold = 0.05
-#                                 )
-# MRPRESSO
-# class(MRPRESSO)
-# class(MRPRESSO$`Main MR results`)
-# class(MRPRESSO$`MR-PRESSO results`)
-# str(MRPRESSO)
-# # Save to file:
-# filename <- sprintf('mrpresso_%s_on_%s.txt',
-#                     outfile_name_exp,
-#                     outfile_name_out
-#                     )
-# filename
-# cat('MRPRESSO tests from MRPRESSO package to detect pleiotropy (global test) and outliers (outlier test)\n\n',
-#     file = filename
-#     )
-# capture.output(MRPRESSO,
-#                file = filename,
-#                append = TRUE
-#                )
+# Run MRPRESSO for outlier detection:
+# Input:
+if (dim(harmonised)[1] > 1) {
+  MRPRESSO_input <- data.frame(beta_exposure = harmonised$beta.exposure,
+                               se_exposure = harmonised$se.exposure,
+                               beta_outcome = harmonised$beta.outcome,
+                               se_outcome = harmonised$se.outcome,
+                               row.names = harmonised$SNP
+                               )
+  names(MRPRESSO_input)
+  MRPRESSO_input
+
+  # Set up args:
+  OUTLIERtest <- as.character(args[['--OUTLIERtest']]) # TRUE
+  DISTORTIONtest <- as.character(args[['--DISTORTIONtest']])# TRUE
+  NbDistribution <- as.numeric(args[['--NbDistribution']]) # 1000
+  SignifThreshold <- as.numeric(args[['--SignifThreshold']]) # 0.05
+
+  MRPRESSO <- MRPRESSO::mr_presso(BetaOutcome = "beta_outcome",
+                                  BetaExposure = "beta_exposure",
+                                  SdOutcome = "se_outcome",
+                                  SdExposure = "se_exposure",
+                                  OUTLIERtest = OUTLIERtest, # TRUE
+                                  DISTORTIONtest = DISTORTIONtest, # TRUE
+                                  data = MRPRESSO_input,
+                                  NbDistribution = NbDistribution, # 1000
+                                  SignifThreshold = SignifThreshold # 0.05
+                                  )
+  MRPRESSO
+  class(MRPRESSO)
+  class(MRPRESSO$`Main MR results`)
+  class(MRPRESSO$`MR-PRESSO results`)
+  str(MRPRESSO)
+  # Save to file:
+  filename <- sprintf('mrpresso_%s.txt',
+                      output_file_prefix
+                      )
+  print('Saving MRPRESSO analysis to:')
+  print(filename)
+  cat('MRPRESSO tests from MRPRESSO package to detect pleiotropy (global test) and outliers (outlier test)\n\n',
+      file = filename
+    )
+  capture.output(MRPRESSO,
+                 file = filename,
+                 append = TRUE
+                 )
+  } else{
+    warning('Too few instruments to run MRPRESSO test, skipping.')
+}
 ##########
 
 ##########
 # TO DO:
 # Put results together in a single table
-# TO DO:
 # check if combine_all_mrresults() is helpful
 # https://mrcieu.github.io/TwoSampleMR/reference/combine_all_mrresults.html
 
@@ -553,8 +586,8 @@ TwoSampleMR::enrichment(harmonised)
 # Others:
 # MRPRESSO
 
-# TO DO: add error catch
 # # TO DO: will error if any value is empty:
+# # add error catch
 # all_res <- TwoSampleMR::combine_all_mrresults(#results_mr_all,
 #                                               res = res_all_OR_and_CIs,
 #                                               het = hetero_all,
@@ -572,6 +605,7 @@ TwoSampleMR::enrichment(harmonised)
 ##########
 # Get plots
 # Scatter plots:
+print('Running MR plots.')
 p1 <- TwoSampleMR::mr_scatter_plot(results_mr_all, harmonised)[[1]] + scale_colour_hue()
 # p1
 class(p1[[1]])
@@ -599,19 +633,19 @@ sapply(my_plots, class)
 grid_plots <- episcout::epi_plots_to_grid(my_plots,
                                           label_size = 12,
                                           align = 'v'
-)
+                                          )
 # TO DO:
 # add legend
-filename <- sprintf('mr_all_plots_%s_on_%s.svg',
-                    outfile_name_exp,
-                    outfile_name_out
-)
-filename
+filename <- sprintf('mr_all_plots_%s.svg',
+                    output_file_prefix
+                    )
+print('Saving plots to:')
+print(filename)
 episcout::epi_plot_cow_save(filename,
                             grid_plots,
                             base_height = 16,
                             base_width = 16
-)
+                            )
 ##########
 
 ##########
@@ -630,23 +664,11 @@ episcout::epi_plot_cow_save(filename,
 ######################
 
 ######################
-# More code
-######################
-
-######################
 ## Save some text:
 # Methods
 # Legend
 # Interpretation
 # cat(file <- output_file, some_var, '\t', another_var, '\n', append = TRUE)
-######################
-
-######################
-# Save file:
-fwrite(object_x, output_file_name,
-       sep = '\t', na = 'NA',
-       col.names = TRUE, row.names = FALSE,
-       quote = FALSE)
 ######################
 
 ######################
@@ -661,7 +683,7 @@ fwrite(object_x, output_file_name,
 
 # Filename to save current R session, data and objects at the end:
 if (!is.null(args[['--session']])) { # arg is NULL
-	save_session <- sprintf('%s_%s.RData', output_name, suffix)
+	save_session <- sprintf('%s_%s.RData', output_file_prefix)
   print(sprintf('Saving an R session image as: %s', save_session))
   save.image(file = save_session, compress = 'gzip')
 } else {
