@@ -56,9 +56,16 @@ Various plots and tables for 2SMR.
 
 Requirements:
 
-    library(docopt)
-    library(TwoSampleMR)
-    library(ggplot2)
+	episcout
+	dplyr
+	ggplot2
+	cowplot
+	psych
+	RadialMR
+	mr.raps
+	MRPRESSO
+	MendelianRandomization
+	TwoSampleMR
 
 Documentation
 =============

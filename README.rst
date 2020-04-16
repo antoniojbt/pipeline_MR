@@ -26,7 +26,7 @@
 
 
 ################################################
-|project_name|
+pipeline_MR
 ################################################
 
 
@@ -36,36 +36,66 @@
 .. For a discussion/approach see 
     http://tom.preston-werner.com/2010/08/23/readme-driven-development.html
 
-|short_description|
+cgatcore/Ruffus pipeline for Mendelian randomisation analysis based mainly on the R package TwoSampleMR.
+
+Allows easier running and reporting when needing to process many exposures and/or outcomes.
+
+Input needed
+-------------
+
+- Minimum input in a tsv file for both exposure and outcome data using TwoSample MR headers:
+  + SNP (rsID)
+  + Effect Allele
+  + Beta (effect size)
+  + SE
+
+- Additional columns (get externally if not provided):
+  + Chromosome
+  + Position
+  + Effect allele frequency (preferably from study sample)
+  + Other Allele
+
+- Additional columns (manually added):
+  + p-value (from GWAS)
+  + Sample size (from GWAS)
+  + Exposure phenotype name for plot labels
+  + Outcome phenotype name for plot labels
 
 
-|long_description|
-
-Features
+Outputs
 --------
 
-- Something really useful
-- Makes things faster
-
+Various MR plots and tables
 
 Requirements
 ------------
 
-See requirements files and Dockerfile for full information. At the least you'll need:
+Main requirements:
 
-* CGATCore
-* R >= 3.2
-* Python >= 3.5
-* r-docopt
-* r-data.table
-* r-ggplot2
+* cgatcore
+* R >= 3.6
+* Python >= 3.6
+* and various R packages including:
+	episcout
+	dplyr
+	ggplot2
+	cowplot
+	psych
+	RadialMR
+	mr.raps
+	MRPRESSO
+	MendelianRandomization
+	TwoSampleMR
+
 
 Installation
 ------------
 
 .. code-block:: bash
    
-    pip install git+git://github.com/|github_user|/|project_name|.git
+    pip install git+git://github.com/AntonioJBT/pipeline_MR.git
+
+Dependencies need to be installed manually for now.
 
 
 To use
@@ -73,27 +103,24 @@ To use
 
 .. code-block:: bash
 
-    # Create a folder or a whole data science project, e.g. project_quickstart -n QTL_project
-    cd QTL_project/results
-    mkdir tests ; cd tests
     # Download test files, e.g.:
-    wget -nH -np -r --cut-dirs=4 -A .txt http://www.bios.unc.edu/research/genomic_software/Matrix_eQTL/Sample_Data/
-    python pipeline_QTL --help
-    python pipeline_QTL config
-    etc
-
-
+    wget -nH -np -r --cut-dirs=4 -A .tsv https://github.com/AntonioJBT/pipeline_MR/tree/master/tests/
+    python pipeline_MR --help
+    python pipeline_MR printconfig
+    python pipeline_MR show full
+    python pipeline_MR make full -v 2 -p 4 --local
+     
 
 Contribute
 ----------
 
 - `Issue Tracker`_
   
-.. _`Issue Tracker`: github.com/|github_user|/|project_name|/issues
+.. _`Issue Tracker`: github.com/AntonioJBT/pipeline_MR/issues
 
 - `Source Code`_
   
-.. _`Source Code`: github.com/|github_user|/|project_name|
+.. _`Source Code`: github.com/AntonioJBT/pipeline_MR
 
 - Pull requests welcome!
 
