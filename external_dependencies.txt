@@ -23,15 +23,37 @@
 ## External tools
 ## ---------------
 
-#plink:
-#    executable: plink
-#    version: --version
-#    regex: '^plink v(\S+)'
-
 ## R Packages
-
-ggplot2:
-    rpackage: ggplot2
 
 data.table:
     rpackage: data.table
+
+episcout:
+    rpackage: episcout
+
+dplyr:
+    rpackage: dplyr
+
+ggplot2: 
+    rpackage: ggplot2
+
+cowplot:
+    rpackage: cowplot
+
+psych:
+    rpackage: psych
+
+RadialMR:
+    rpackage: RadialMR
+
+mr.raps:
+    rpackage: mr.raps
+
+MRPRESSO:
+    rpackage: MRPRESSO
+
+MendelianRandomization:
+    rpackage: MendelianRandomization
+
+TwoSampleMR:
+    rpackage: TwoSampleMR
