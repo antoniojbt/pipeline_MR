@@ -28,7 +28,7 @@ Options:
   --exposure <exposure_file>      Exposure input file name
   --outcome <outcome_file>        Outcome input file name
   -O <OUTPUT_FILE>                Output file name
-  --run-clumping <BOOL>           Clump SNPs with TwoSampleMR [default: TRUE].
+  --stop-clumping <BOOL>          Stop clumping of SNPs [default: FALSE].
   --clump-kb <num>                TwoSampleMR clump_data() parameter [default: 10000].
   --clump-r2 <num>                TwoSampleMR clump_data() parameter [default: 0.001].
   --clump-p1 <num>                TwoSampleMR clump_data() parameter [default: 1].
@@ -84,6 +84,8 @@ args <- docopt(doc)
 
 # Print args given to screen:
 str(args)
+
+options(echo = TRUE) # print commands
 ######################
 
 ##########
@@ -217,12 +219,11 @@ if (!is.null(args[['--outcome']])) { # for docopt this will be NULL or chr, if b
   # colnames(out_data)
   # head(out_data)
   # dim(out_data)
-
+} else {
   # Stop if arguments not given:
   print('You need to provide an outcome input file. This has to be tab separated with headers in the format for TwoSampleMR.')
   stopifnot(!is.null(args[['--outcome']]))
 }
-
 print('File being used for outcome data: ')
 print(outcome_file)
 ##########
@@ -235,7 +236,6 @@ if (is.null(args[['-O']])) { # arg is NULL
   outfile_name_exp <- strsplit(exposure_file, "[.]\\s*(?=[^.]+$)", perl = TRUE)[[1]][1]
   outfile_name_out <- strsplit(outcome_file, "[.]\\s*(?=[^.]+$)", perl = TRUE)[[1]][1]
   output_file_prefix <- sprintf('%s_on_%s', outfile_name_exp, outfile_name_out)
-  output_file_prefix
   print('Output file prefix not given. Using: ')
   print(output_file_prefix)
 } else {
@@ -259,18 +259,18 @@ clump_r2 <- as.numeric(args[['--clump-r2']])
 clump_p1 <- as.numeric(args[['--clump-p1']])
 clump_p2 <- as.numeric(args[['--clump-p2']])
 
-if (isTRUE(args[['--run-clump']])) { # clumping required
-  exp_data <- TwoSampleMR::clump_data(dat = exp_data,
-                                    clump_kb = clump_kb,
-                                    clump_r2 = clump_r2,
-                                    clump_p1 = clump_p1,
-                                    clump_p2 = clump_p2
-                                    )
-} else{
+if (isTRUE(args[['--stop-clumping']])) {
   warning('Clumping set to false.')
+} else {
+  exp_data <- TwoSampleMR::clump_data(dat = exp_data,
+                                      clump_kb = clump_kb,
+                                      clump_r2 = clump_r2,
+                                      clump_p1 = clump_p1,
+                                      clump_p2 = clump_p2
+                                      )
 }
-head(exp_data)
-dim(exp_data)
+# head(exp_data)
+# dim(exp_data)
 
 
 
@@ -282,8 +282,8 @@ harmonised <- TwoSampleMR::harmonise_data(exposure_dat = exp_data,
                                           action = action # 2=infer positive strand alleles,
                                           # using AF for palindromes
                                           )
-head(harmonised)
-dim(harmonised)
+# head(harmonised)
+# dim(harmonised)
 
 # # Drop duplicate exposure-outcome summary sets:
 # # Drop by sample size:
@@ -297,7 +297,7 @@ dim(harmonised)
 ##########
 # Run MR and further tests:
 results_mr <- TwoSampleMR::mr(harmonised)
-results_mr
+# results_mr
 # default_parameters():
 # $test_dist
 # [1] "z"
@@ -348,10 +348,10 @@ methods_list <- c("mr_wald_ratio", # single SNP only
                   "mr_uwr")
 
 results_mr_all <- TwoSampleMR::mr(harmonised, method_list = methods_list)
-results_mr_all
+# results_mr_all
 # Add OR and CIs:
 res_all_OR_and_CIs <- TwoSampleMR::generate_odds_ratios(results_mr_all)
-res_all_OR_and_CIs
+# res_all_OR_and_CIs
 
 # Errors:
 # res_radial <- mr(harmonised, method_list = c("mr_ivw_radial"))
@@ -383,8 +383,8 @@ twoSMR_to_MR_pack <- MendelianRandomization::mr_input(
   outcome = harmonised$outcome[[1]],
   snps = harmonised$SNP
 )
-class(twoSMR_to_MR_pack)
-twoSMR_to_MR_pack
+# class(twoSMR_to_MR_pack)
+# twoSMR_to_MR_pack
 
 # Get I^2 statistic:
 # Set up args:
@@ -399,8 +399,8 @@ egger <- MendelianRandomization::mr_egger(twoSMR_to_MR_pack,
                                           distribution = egger_distribution, # "normal"
                                           alpha = egger_alpha # 0.05
                                           )
-class(egger)
-str(egger)
+# class(egger)
+# str(egger)
 
 # Save to file:
 filename <- sprintf('egger_i2_%s.txt',
@@ -470,7 +470,7 @@ res_single <- TwoSampleMR::mr_singlesnp(harmonised,
                                                        "mr_egger_regression"
                                                        )
                                         )
-res_single
+# res_single
 # Save to file:
 filename <- sprintf('single_SNP_wald_%s.txt',
                     output_file_prefix
@@ -487,7 +487,7 @@ res_loo <- TwoSampleMR::mr_leaveoneout(harmonised)
 # parameters = default_parameters(),
 # method = mr_ivw
 # )
-res_loo
+# res_loo
 # Save to file:
 filename <- sprintf('loo_IVW_%s.txt',
                     output_file_prefix
@@ -529,8 +529,8 @@ if (dim(harmonised)[1] > 1) {
                                se_outcome = harmonised$se.outcome,
                                row.names = harmonised$SNP
                                )
-  names(MRPRESSO_input)
-  MRPRESSO_input
+  # names(MRPRESSO_input)
+  # MRPRESSO_input
 
   # Set up args:
   OUTLIERtest <- as.character(args[['--OUTLIERtest']]) # TRUE
@@ -548,11 +548,11 @@ if (dim(harmonised)[1] > 1) {
                                   NbDistribution = NbDistribution, # 1000
                                   SignifThreshold = SignifThreshold # 0.05
                                   )
-  MRPRESSO
-  class(MRPRESSO)
-  class(MRPRESSO$`Main MR results`)
-  class(MRPRESSO$`MR-PRESSO results`)
-  str(MRPRESSO)
+  # MRPRESSO
+  # class(MRPRESSO)
+  # class(MRPRESSO$`Main MR results`)
+  # class(MRPRESSO$`MR-PRESSO results`)
+  # str(MRPRESSO)
   # Save to file:
   filename <- sprintf('mrpresso_%s.txt',
                       output_file_prefix
@@ -615,8 +615,8 @@ if (dim(harmonised)[1] > 1) {
 print('Running MR plots.')
 p1 <- TwoSampleMR::mr_scatter_plot(results_mr_all, harmonised)[[1]] + scale_colour_hue()
 # p1
-class(p1[[1]])
-class(p1)
+# class(p1[[1]])
+# class(p1)
 # ggplot2::ggsave('mr_scatter_plot.svg', scale = 1.2)
 
 # Forest plot:
@@ -636,7 +636,7 @@ p4 <- TwoSampleMR::mr_funnel_plot(res_single)
 
 # Put together:
 my_plots <- list(p1, p2[[1]], p3[[1]], p4[[1]]) # p1 was already subset
-sapply(my_plots, class)
+# sapply(my_plots, class)
 grid_plots <- episcout::epi_plots_to_grid(my_plots,
                                           label_size = 12,
                                           align = 'v'
@@ -699,8 +699,8 @@ if (!is.null(args[['--session']])) { # arg is NULL
 
 # If using Rscript and creating plots, Rscript will create the file Rplots.pdf
 # by default, it doesn't look like there is an easy way to suppress it, so deleting here:
-print('Deleting the file Rplots.pdf...')
-system('rm -f Rplots.pdf')
+# print('Deleting the file Rplots.pdf...')
+# system('rm -f Rplots.pdf')
 print('Finished successfully.')
 sessionInfo()
 q()
