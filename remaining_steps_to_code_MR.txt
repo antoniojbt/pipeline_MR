@@ -1,0 +1,116 @@
+########################################
+Steps to do for complete pipeline MR
+########################################
+
+
+######
+- Manually change headers to 2SMR package for both exposure and outcome files
+    + Minimum requirements for each SNP: effect sizes, standard errors and effect alleles
+    + Ideally also obtain sample size, non-effect allele and effect allele frequency
+######
+
+
+######
+- Script: check rsIDs match current release and builds are the same for exposure and outcome
+######
+
+
+######
+- Script: pick genome-wide significant SNPs from exposure (at least p-val < 10e-5, ideally p-val < 10e-8) with replication in an independent sample eg:
+
+  awk -F',' '($16 + 0) < 5E-08' model1_bolt.csv > significant_SNPs.csv
+######
+
+
+######
+- Script: Obtain proxy SNPs in high LD with exposure instruments (ideally r^2 = 1, at least > 0.8, from the same population). Ensure that the surrogate allele for the LD proxy SNPs are in phase with the effect allele of the original SNP.
+
+see eg:
+https://github.com/katiedavis2918/VitaminD_Autoimmune_Conditions/blob/master/LDLinkR_proxies_Test.R
+
+See also database from IEU or create own LD datasets
+######
+
+
+######
+- Script: extract exposure SNPs from outcome data eg:
+  see ripgrep in pipeline
+######
+
+
+######
+- Script: Test instrument strength with partial F statistics and r2 variance for each SNP, keep those > 10. This will exclude weak instruments and reduce weak instrument bias. A separate power calculation is needed however to test specific hypotheses.
+    + Approximate F-statistic calculation
+    + Exact F-statistic calculation
+    + Calculate pooled F-statistic
+eg:
+
+# From Xiyun:
+# Variance explained and F-statistics
+R2<-rep(0,275)
+f_stats<-rep(0,275)
+for(i in 1:275){
+  R2[i] <-(2*(clumppped_data[i, 5])^2*clumppped_data[i, 4]*(1- clumppped_data[i, 4]))/(2*(clumppped_data[i, 5])^2*clumppped_data[i, 4]*(1- clumppped_data[i, 4]) + ((clumppped_data[i, 6])^2*2*462371*clumppped_data[i, 4]*(1-clumppped_data[i, 4])))
+  f_stats[i] <- (R2[i]*(462371-2))/(1-R2[i])
+}
+
+
+# From Katie:
+# 
+# Formula for R^2:
+#f_out[i]<-(2*(beta^2)*(MAF)*(1-(MAF)))/((2*(beta^2)*(MAF)*(1-(MAF)))+((se^2)*(2*N)*(MAF)*(1-(MAF))))
+
+# -----  Compute F.statistic  -----------------
+
+# df[i,11] = R2 
+# df[i,9] = N
+
+#f_out[i]<-(R2(N-2))/(1-R2)
+
+F.stat<-rep(0,6)
+for(i in 1:6){
+  F.stat[i]<-(df[i,11]*(df[i,9] -2))/(1- df[i,11])
+}
+
+# Add to table :
+df$F.stat<-F.stat
+#######
+
+
+#######
+- Script: standardise direction of alleles eg:
+
+https://github.com/XiyunJiang/Bilirubin_MSc_MR/blob/cef8894f3485a1de4974b51baf434d6fb0e981b6/Method_analysis/Traditional_MR/using_chisq_MR_analysis.R#L87
+
+to line 135
+
+also eg:
+https://github.com/katiedavis2918/VitaminD_Autoimmune_Conditions/blob/master/0.2_Standardise_Exposure_Betas.R
+#########
+
+
+#########
+Run 2SMR script with output from steps above
+#########
+
+
+
+
+Later
+#########
+
+Script/function to obtain:
+- Carry out power calculation:
+    + See eg: http://cnsgenomics.com/shiny/mRnd/
+    + Power in MR is determined by the sample size and strength of the association between instrument and exposure
+
+- Do manual clumping retaining the SNP with lowest p-value and highest F-statistic
+
+Script/function to obtain:
+    + Instead of clumping keep all instruments, create LD matrix and use as covariate in MR methods (in e.g. MendelianRandomization R package).
+    + Remove HLA SNPs, typically use only bi-allelic SNPs
+
+Script/function to obtain:
+9. Consider calculating and using a genetic risk score and repeating as above.
+
+

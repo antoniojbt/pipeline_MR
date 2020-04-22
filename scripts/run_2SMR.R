@@ -92,19 +92,14 @@ args <- docopt(doc)
 # Print args given to screen:
 str(args)
 
-options(echo = TRUE) # print commands
+# options(echo = TRUE) # print commands for debugging
 ######################
 
 ######################
 # TO DO:
 
 # convert to functions and move them to pipeMR
-# Get proxy SNPs for exposure data first, then match to outcome data, then clump
-# (remove weaker instruments in LD) and harmonise
 # Currently matching without proxy SNPs
-
-# First add warning(), stop(), if/else according to number of SNPs
-# then move each section as a separate function to pipeMR if needed
 
 # function to make table from:
 # mr_all_BMI_on_CHD.tsv
@@ -119,12 +114,8 @@ options(echo = TRUE) # print commands
 # Other results are:
 # mr_all_plots_BMI_on_CHD.svg
 
-
 # pass as arg:
 # TwoSampleMR::mr_method_list() # hardcoded, currently all but radial and raps
-
-# check as Parsa files not consistent in naming
-# check clumping Ville did at R2 of 0.1 is correct
 ######################
 
 ######################
