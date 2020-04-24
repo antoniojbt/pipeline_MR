@@ -2,16 +2,10 @@
 Steps to do for complete pipeline MR
 ########################################
 
-
 ######
 - Manually change headers to 2SMR package for both exposure and outcome files
     + Minimum requirements for each SNP: effect sizes, standard errors and effect alleles
     + Ideally also obtain sample size, non-effect allele and effect allele frequency
-######
-
-
-######
-- Script: check rsIDs match current release and builds are the same for exposure and outcome
 ######
 
 
@@ -23,18 +17,26 @@ Steps to do for complete pipeline MR
 
 
 ######
+- Script: check rsIDs match current release and builds are the same for exposure and outcome
+use ieugwasr package
+######
+
+
+######
 - Script: Obtain proxy SNPs in high LD with exposure instruments (ideally r^2 = 1, at least > 0.8, from the same population). Ensure that the surrogate allele for the LD proxy SNPs are in phase with the effect allele of the original SNP.
 
 see eg:
 https://github.com/katiedavis2918/VitaminD_Autoimmune_Conditions/blob/master/LDLinkR_proxies_Test.R
 
 See also database from IEU or create own LD datasets
+use ieugwasr package
 ######
 
 
 ######
 - Script: extract exposure SNPs from outcome data eg:
-  see ripgrep in pipeline
+  if from user dataset see ripgrep in pipeline
+  otherwise use ieugwasr package
 ######
 
 

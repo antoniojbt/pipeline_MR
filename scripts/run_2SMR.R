@@ -102,17 +102,17 @@ str(args)
 # Currently matching without proxy SNPs
 
 # function to make table from:
-# mr_all_BMI_on_CHD.tsv
-# single_SNP_wald_BMI_on_CHD.tsv
-# heterogeneity_BMI_on_CHD.tsv
-# i_squared_BMI_on_CHD.txt
-# loo_IVW_BMI_on_CHD.tsv
-# mrpresso_BMI_on_CHD.tsv
-# pleiotropy_BMI_on_CHD.tsv
-# steiger_BMI_on_CHD.tsv
+# mr_single_SNP_pqtl_xxx.txt
+# mr_results_pqtl_xxx.txt
+# mr_heterogeneity_pqtl_xxx.txt
+# mr_egger_i2_pqtl_xxx.txt
+# mr_loo_IVW_pqtl_xxx.txt
+# mr_presso_pqtl_xxx.txt
+# mr_pleiotropy_pqtl_xxx.txt
+# mr_steiger_pqtl_xxx.txt
 
 # Other results are:
-# mr_all_plots_BMI_on_CHD.svg
+# mr_plots_pqtl_xxx.svg
 
 # pass as arg:
 # TwoSampleMR::mr_method_list() # hardcoded, currently all but radial and raps
@@ -186,7 +186,9 @@ if (!is.null(args[['--exposure']])) { # for docopt this will be NULL or chr, if 
   exposure_file <- as.character(args[['--exposure']])
   # For tests:
   # setwd('~/Documents/quickstart_projects/projects/MR_pipeline_runs/pipeline_MR_tests')
+  # setwd('~/Documents/quickstart_projects/projects/cytokines_blood_traits_MR/results/ville_pQTL_on_AID/')
   # exposure_file <- 'exposure_bmi_TwoSampleMR.tsv'
+  # exposure_file <- 'cis_pqtl_instruments.2SMR.tsv'
   exp_data <- TwoSampleMR::read_exposure_data(filename = exposure_file,
                                               sep = '\t',
                                               clump = FALSE,
@@ -213,6 +215,7 @@ if (!is.null(args[['--outcome']])) { # for docopt this will be NULL or chr, if b
   outcome_file <- as.character(args[['--outcome']])
   # For tests:
   # outcome_file <- 'outcome_chd_TwoSampleMR.tsv'
+  # outcome_file <- 'outcome_data_available/AS_23749187.tsv'
 
   out_data <- TwoSampleMR::read_outcome_data(filename = outcome_file,
                                              sep = '\t',
@@ -221,7 +224,7 @@ if (!is.null(args[['--outcome']])) { # for docopt this will be NULL or chr, if b
   # colnames(out_data)
   # head(out_data)
   # dim(out_data)
-} else {
+  } else {
   # Stop if arguments not given:
   print('You need to provide an outcome input file. This has to be tab separated with headers in the format for TwoSampleMR.')
   stopifnot(!is.null(args[['--outcome']]))
@@ -232,7 +235,6 @@ print(outcome_file)
 
 ##########
 # Set output file names:
-# suffix <- '2SMR'
 if (is.null(args[['-O']])) { # arg is NULL
   # Split infile names at the last '.':
   outfile_name_exp <- strsplit(exposure_file, "[.]\\s*(?=[^.]+$)", perl = TRUE)[[1]][1]
@@ -243,6 +245,7 @@ if (is.null(args[['-O']])) { # arg is NULL
 } else {
   output_file_prefix <- as.character(args[['-O']])
   # output_file_prefix <- 'testing'
+  # output_file_prefix <- 'pqtl_AS_23749187'
   print(sprintf('Output file prefix provided: %s', output_file_prefix))
   print(output_file_prefix)
 }
@@ -514,13 +517,14 @@ capture.output(egger,
 ##########
 # Heterogeneity statistics
 hetero_meths <- TwoSampleMR::mr_method_list()
-hetero_meths <- hetero_meths[which(hetero_meths$heterogeneity_test), 'obj']
-# hetero_meths <- c("mr_two_sample_ml",
-#                   "mr_egger_regression",
-#                   "mr_ivw",
-#                   "mr_ivw_radial", # requires package ‘RadialMR’
-#                   "mr_uwr"
-#                   )
+# TO DO: pass as arg:
+# hetero_meths <- hetero_meths[which(hetero_meths$heterogeneity_test), 'obj']
+hetero_meths <- c("mr_two_sample_ml",
+                  "mr_egger_regression",
+                  "mr_ivw",
+                  # "mr_ivw_radial"#, # requires package ‘RadialMR’
+                  "mr_uwr"
+                  )
 
 hetero_all <- TwoSampleMR::mr_heterogeneity(harmonised,
                                             method_list = hetero_meths
@@ -651,22 +655,6 @@ if (dim(harmonised)[1] > 1) {
 # check if combine_all_mrresults() is helpful
 # https://mrcieu.github.io/TwoSampleMR/reference/combine_all_mrresults.html
 
-# Output objects from above:
-# TwoSampleMR:
-# results_mr_all
-# res_all_OR_and_CIs
-# hetero_all
-# pleio
-# res_single
-# res_loo
-# steiger
-
-# MendelianRandomization:
-# egger
-
-# Others:
-# MRPRESSO
-
 # # TO DO: will error if any value is empty:
 # # add error catch
 # all_res <- TwoSampleMR::combine_all_mrresults(#mr_OR_and_CIs,
@@ -681,6 +669,12 @@ if (dim(harmonised)[1] > 1) {
 #                                               )
 #
 # # head(all_res[,c("Method","outcome","exposure","nsnp","b","se","pval","intercept","intercept_se","intercept_pval","Q","Q_df","Q_pval","consortium","ncase","ncontrol","pmid","population")])
+
+# Manually for eg single SNP results:
+# echo -e "exposure\toutcome\tid.exposure\tid.outcome\tsamplesize\tSNP\tb\tse\tp\tlo_ci\tup_ci\tor\tor_lci95\tor_uci95" > header_single_SNP.tsv
+# cat summary_Wald.tsv | grep -v exposure > summary_Wald.tsv2
+# cat header_single_SNP.tsv summary_Wald.tsv2 > summary_Wald.tsv
+# rm -f summary_Wald.tsv2
 ##########
 ######################
 
@@ -716,7 +710,7 @@ pipemr_scatter <- function(mr_results = NULL,
   # Legend
   # Interpretation
   # cat(file <- output_file, some_var, '\t', another_var, '\n', append = TRUE)
-
+  print('Generating scatter plot.')
   return(p1)
 }
 
@@ -733,8 +727,6 @@ if (mr_methods == 'main' | mr_methods == 'all') {
 ##########
 # Get plots
 # Single SNP plots:
-print('Running MR plots.')
-
 pipemr_single_SNP_plots <- function(singlesnp_results = NULL,
                                     exponentiate = FALSE,
                                     leaveoneout_results = NULL
@@ -761,7 +753,7 @@ pipemr_single_SNP_plots <- function(singlesnp_results = NULL,
 
   # TO DO:
   # add legend
-
+  print('Running MR single SNP plots.')
   return(single_SNP_plots)
 }
 
