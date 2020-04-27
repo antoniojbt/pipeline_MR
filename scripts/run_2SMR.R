@@ -99,7 +99,6 @@ str(args)
 # TO DO:
 
 # convert to functions and move them to pipeMR
-# Currently matching without proxy SNPs
 
 # function to make table from:
 # mr_single_SNP_pqtl_xxx.txt
