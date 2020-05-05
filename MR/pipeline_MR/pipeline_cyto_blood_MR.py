@@ -87,6 +87,7 @@ import sys
 import os
 import re
 import subprocess
+import glob
 
 # Pipeline:
 from ruffus import *
@@ -98,19 +99,6 @@ import sqlite3
 import cgatcore.iotools as iotools
 import cgatcore.pipeline as P
 import cgatcore.experiment as E
-
-
-# Import this project's module, uncomment if building something more elaborate: 
-#try: 
-#    import  pipeline_template.module_template
-
-#except ImportError: 
-#    print("Could not import this project's module, exiting") 
-#    raise 
-
-# Import additional packages:
-# Set path if necessary:
-#os.system('''export PATH="~/xxxx/xxxx:$PATH"''')
 ################
 
 ################
@@ -133,124 +121,23 @@ def getDir(path = _ROOT):
 
 ################
 # Load options from the config file
-# Pipeline configuration
-ini_paths = [os.path.abspath(os.path.dirname(sys.argv[0])),
-             "../",
-             os.getcwd(),
-             ]
-
-def getParamsFiles(paths = ini_paths):
-    '''
-    Search for python ini files in given paths, append files with full
-    paths for P.getParameters() to read.
-    Current paths given are:
-    where this code is executing, one up, current directory
-    '''
-    p_params_files = []
-    for path in ini_paths:
-        for f in os.listdir(os.path.abspath(path)):
-            ini_file = re.search(r'pipelin(.*).yml', f)
-            if ini_file:
-                ini_file = os.path.join(os.path.abspath(path), ini_file.group())
-                p_params_files.append(ini_file)
-    return(p_params_files)
-
 P.get_parameters(
         ["%s/pipeline.yml" % os.path.splitext(__file__)[0],
             "../pipeline.yml",
             "pipeline.yml"],
         )
 
-
 PARAMS = P.PARAMS
-# Print the options loaded from ini files and possibly a .cgat file:
-#pprint.pprint(PARAMS)
-# From the command line:
-#python ../code/pq_example/pipeline_pq_example/pipeline_pq_example.py printconfig
-
-
-# Set global parameters here, obtained from the ini file
-# e.g. get the cmd tools to run if specified:
-#cmd_tools = P.asList(PARAMS["cmd_tools_to_run"])
-
-def get_py_exec():
-    '''
-    Look for the python executable. This is only in case of running on a Mac
-    which needs pythonw for matplotlib for instance.
-    '''
-
-    try:
-        if str('python') in PARAMS["general"]["py_exec"]:
-            py_exec = '{}'.format(PARAMS["general"]["py_exec"])
-    except NameError:
-        E.warn('''
-               You need to specify the python executable, just "python" or
-               "pythonw" is needed in pipeline.yml.
-               ''')
-    #else:
-    #    test_cmd = subprocess.check_output(['which', 'pythonw'])
-    #    sys_return = re.search(r'(.*)pythonw', str(test_cmd))
-    #    if sys_return:
-    #        py_exec = 'pythonw'
-    #    else:
-    #        py_exec = 'python'
-    return(py_exec)
-#get_py_exec()
-
-def getINIpaths():
-    '''
-    Get the path to scripts for this project, e.g.
-    project_xxxx/code/project_xxxx/:
-    e.g. my_cmd = "%(scripts_dir)s/bam2bam.py" % P.Parameters.get_params()
-    '''
-    # Check getParams as was updated to get_params but
-    # PARAMS = P.Parameters.get_parameters(getParamsFiles())
-    # is what seems to work
-    try:
-        project_scripts_dir = '{}/'.format(PARAMS['general']['project_scripts_dir'])
-        E.info('''
-               Location set for the projects scripts is:
-               {}
-               '''.format(project_scripts_dir)
-               )
-    except KeyError:
-        E.warn('''
-               Could not set project scripts location, this needs to be
-               specified in the project ini file.
-               ''')
-        raise
-
-    return(project_scripts_dir)
-################
-
-################
-# Utility functions
-def connect():
-    '''utility function to connect to database.
-
-    Use this method to connect to the pipeline database.
-    Additional databases can be attached here as well.
-
-    Returns an sqlite3 database handle.
-    '''
-
-    dbh = sqlite3.connect(PARAMS["database"]["name"])
-    statement = '''ATTACH DATABASE '%s' as annotations''' % (
-        PARAMS["annotations"]["database"])
-    cc = dbh.cursor()
-    cc.execute(statement)
-    cc.close()
-
-    return dbh
 ################
 
 ################
 # Specific pipeline tasks
 # Tools called need the full path or be directly callable
 
+
 @transform('*.csv', # adj_PF_PLTF_WZ.csv
-           regex(r'(^[^cis].*).csv'),
-           r'\1.tsv'
+           suffix('.csv'),
+           '.csv_to_tsv'
            )
 def csv_to_tsv(infile, outfile):
     '''
@@ -262,10 +149,10 @@ def csv_to_tsv(infile, outfile):
     P.run(statement)
 
 
-@follows(csv_to_tsv)
-@transform('*.tsv', # adj_PF_PLTF_WZ.tsv
-           regex(r'(^[^pqtl][^cis].*).tsv'), # also avoid cis_pqtl_instruments.2SMR.tsv
-           r'pqtl_in_\1.rg.tsv', # pqtl_in_adj_PF_PLTF_WZ.rg.tsv
+#@follows(csv_to_tsv)
+@transform('*.csv_to_tsv',
+           suffix('.csv_to_tsv'),
+           '.rg_csv_to_tsv',
            'exposure_instruments.txt', # cis_pqtl_instruments_SNPs_only.txt
            )
 def grep_SNPs(infile1, outfile, infile2):
@@ -280,10 +167,10 @@ def grep_SNPs(infile1, outfile, infile2):
     P.run(statement)
 
 
-@follows(grep_SNPs)
-@transform('pqtl_in_*.rg.tsv', # pqtl_in_adj_PF_PLTF_WZ.rg.tsv
-           regex(r'(.*).[^2SMR].rg.tsv'),
-           r'\1.2SMR.tsv' # pqtl_in_adj_PF_PLTF_WZ.2SMR.tsv
+#@follows(grep_SNPs)
+@transform('*.rg_csv_to_tsv',
+           suffix('.rg_csv_to_tsv'),
+           '.out_2SMR_tsv'
            )
 def parsa_to_2SMR(infile, outfile):
     '''
@@ -298,29 +185,26 @@ def parsa_to_2SMR(infile, outfile):
 
 # Only needs to be run once and is specific to one file:
 #@follows(grep_SNPs)
-#@transform('cis_*.csv', # cis_pqtl_instruments.csv
-#           suffix('.csv'),
-#           '.2SMR.tsv' # cis_pqtl_instruments.2SMR.tsv
-#           )
-#def ville_to_2SMR(infile, outfile):
-#    '''
-#    Change column names to TwoSampleMR format for Ville pQTL file
-#    '''
+@transform('cis_*.csv', # cis_pqtl_instruments.csv
+           suffix('.csv'),
+           '.exp_2SMR_tsv' # cis_pqtl.exp_2SMR_tsv
+           )
+def ville_to_2SMR(infile, outfile):
+    '''
+    Change column names to TwoSampleMR format for Ville pQTL file
+    '''
     
-#    statement = '''Rscript ville_to_2SMR.R %(infile)s %(outfile)s
-#                '''
-#
-#    P.run(statement)
+    statement = '''Rscript ville_to_2SMR.R %(infile)s %(outfile)s
+                '''
+
+    P.run(statement)
 
 
-# TO DO: rename specific outputs
-
-
-@follows(parsa_to_2SMR)
-@transform('pqtl_in_*.2SMR.tsv', # 'pqtl_in_adj_PF_PLTF_WY.2SMR.tsv'
-           suffix('.2SMR.tsv'),
-           '.2SMR.MR_results.touch', # multiple outputs
-           'cis_pqtl_instruments.2SMR.tsv'
+#@follows(parsa_to_2SMR)
+@transform('*.out_2SMR_tsv',
+           suffix('.out_2SMR_tsv'),
+           '.out_2SMR_touch', # multiple outputs
+           'cis_pqtl.exp_2SMR_tsv' # use a generic name
            )
 def ville_parsa_MR(outcome, outfile, exposure):
     '''
@@ -333,6 +217,40 @@ def ville_parsa_MR(outcome, outfile, exposure):
                 '''
 
     P.run(statement)
+
+
+#@follows(ville_parsa_MR)
+@transform('*.svg',
+           suffix('.svg'),
+           '.pdf'
+           )
+def svg_to_pdf(infile, outfile):
+    '''
+    Convert svg plots to PDFs and merge into single document
+    '''
+    #ln -s $(grep -L 'Insufficient' ../results_all/%(infile)s) . ;
+    statement = ''' 
+                    rsvg-convert -a -f pdf -o %(outfile)s %(infile)s
+                '''
+
+    P.run(statement)
+
+
+#@follows(svg_to_pdf)
+@merge(svg_to_pdf, 'all_plots.pdf')
+def combine_pdfs(infiles, summary_file):
+    '''
+    Combine individual PDFs into single file
+    '''
+#pdfunite %(infiles)s %(summary_file)s
+    statement = ''' pdfunite *.pdf %(summary_file)s
+                '''
+
+    P.run(statement)
+
+
+# TO DO: combine results
+
 ################
 
 ################
@@ -368,7 +286,7 @@ def full(outfile):
 # Build report with pre-configured files using sphinx-quickstart
 # Convert any svg files to PDF if needed:
 @transform('*.svg', suffix('.svg'), '.pdf')
-def svg_to_pdf(infile, outfile):
+def svg_to_pdf2(infile, outfile):
     '''
     Simple conversion of svg to pdf files with inkscape
     '''
