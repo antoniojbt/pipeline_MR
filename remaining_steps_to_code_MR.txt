@@ -46,6 +46,9 @@ use ieugwasr package
     + Exact F-statistic calculation
     + Calculate pooled F-statistic
 eg:
+For each of the instruments, if you have the SNP-exposure data then
+qf(pval, df1=1, df2=samplesize-1, lower.tail=FALSE)
+
 
 # From Xiyun:
 # Variance explained and F-statistics
