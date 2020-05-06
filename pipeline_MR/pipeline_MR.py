@@ -55,15 +55,14 @@ Input files
 
 Requires exposure and outcome tab-separated files as required by the R package TwoSampleMR. Additionally:
   - Outcome file names must have the suffix ".out_2SMR_tsv"
-  - The exposure file name (can contain multiple exposures) must have the suffix ".exp_2SMR_tsv"
-  - The exposure file must be named "exposure.2SMR_tsv"
+  - The exposure file name (can contain multiple exposures) must be named "exposure.2SMR_tsv"
   - The outcome and exposure files must at least contain:
     + SNP (rsID)
     + Effect Allele
     + Other Allele
     + Beta (effect size)
     + SE
-- A single column file with no header called 'exposure_instruments.txt' containing all exposure SNPs must be present in the working directory
+- A single column file with no header called "exposure_instruments.txt" containing all exposure SNPs must be present in the working directory
 
 
 Pipeline output
@@ -164,9 +163,6 @@ def grep_SNPs(infile1, outfile, infile2):
     '''
     Grep exposure SNPs from outcome files using ripgrep.
     '''
-    # rg -wf cis_pqtl_instruments_SNPs_only.txt \
-    # adj_PF_PLTF_WZ.tsv > \
-    # pqtl_in_adj_PF_PLTF_WZ.tsv
     statement = '''rg -wf %(infile2)s %(infile1)s > %(outfile)s '''
     
     P.run(statement)
@@ -180,19 +176,20 @@ def grep_SNPs(infile1, outfile, infile2):
            )
 def run_2SMR(outcome, outfile, exposure):
     '''
-    Run MR analysis for Ville cytokines (exposure) and Parsa et al blood
-    cell traits (outcome).
+    Run MR analysis.
     '''
     
-    statement = '''Rscript run_2SMR.R %(exposure)s %(outcome)s ; 
+    statement = '''Rscript run_2SMR.R --exposure %(exposure)s \
+                                      --outcome %(outcome)s \
+                                          
+                                          ; 
                    touch %(outfile)s
                 '''
 
     P.run(statement)
 
 
-@mkdir('combined_results')
-@follows(run_2SMR)
+@follows(mkdir('combined_results'), run_2SMR)
 @transform('*.svg',
            suffix('.svg'),
            '.pdf'
@@ -244,7 +241,7 @@ def single_SNP_summary(infile, outfile):
     P.run(statement)
 
 
-@follows(combine_pdfs)
+@follows(single_SNP_summary)
 @merge('*.results_all_mr',
        'mr_summary.tsv'
        )
@@ -270,7 +267,7 @@ def main_mr_summary(infile, outfile):
 # TO DO: collect MR RAPS if called for
 
 
-@follows(combine_pdfs)
+@follows(main_mr_summary)
 @merge('*.results_heterogeneity',
        'heterogeneity_summary.tsv'
        )
@@ -294,7 +291,7 @@ def heterogeneity_summary(infile, outfile):
 # cat ../results_all/egger_i_squared_cis_pqtl_on_DF_EOSI_WX.txt 
 # filename from run_2SMR.R is %s.results_egger_i2
 
-@follows(combine_pdfs)
+@follows(heterogeneity_summary)
 @merge('*.results_loo',
        'loo_summary.tsv'
        )
@@ -312,7 +309,7 @@ def loo_summary(infile, outfile):
     P.run(statement)
 
 # TO DO: check PRESSO results
-@follows(combine_pdfs)
+@follows(loo_summary)
 @merge('*.results_presso',
        'presso_summary.tsv'
        )
@@ -330,7 +327,7 @@ def presso_summary(infile, outfile):
     P.run(statement)
 
 
-@follows(combine_pdfs)
+@follows(presso_summary)
 @merge('*.results_pleiotropy',
        'pleiotropy_summary.tsv'
        )
@@ -348,7 +345,7 @@ def pleiotropy_summary(infile, outfile):
     P.run(statement)
 
 # TO DO: haven't generated results
-@follows(combine_pdfs)
+@follows(pleiotropy_summary)
 @merge('*.results_steiger',
        'steiger_summary.tsv'
        )
@@ -368,7 +365,7 @@ def steiger_summary(infile, outfile):
 
 ################
 # Copy to log enviroment from conda:
-@follows(combine_pdfs)
+@follows(steiger_summary)
 @originate('conda_info.txt')
 def conda_info(outfile):
     '''
