@@ -178,10 +178,16 @@ def run_2SMR(outcome, outfile, exposure):
     '''
     Run MR analysis.
     '''
-    
+
+    run_2SMR_options = PARAMS['run_2SMR']
+    if run_2SMR_options == None:
+        run_2SMR_options = ''
+    else:
+        pass
+
     statement = '''Rscript run_2SMR.R --exposure %(exposure)s \
                                       --outcome %(outcome)s \
-                                          
+                                      %(run_2SMR_options)s    
                                           ; 
                    touch %(outfile)s
                 '''
