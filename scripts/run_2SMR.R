@@ -373,7 +373,7 @@ pipeMR_single <- function(input = NULL) {
   print('Default parameters for TwoSampleMR:')
   print(default_parameters())
   # Save to file:
-  filename <- sprintf('mr_single_SNP_%s.txt',
+  filename <- sprintf('%s.results_single_SNP',
                       output_file_prefix
                       )
   print('Saving single SNP analysis to:')
@@ -433,7 +433,7 @@ if (mr_methods == 'none') {
 
 # Save to file:
 if (mr_methods == 'main' | mr_methods == 'all') {
-  filename <- sprintf('mr_results_%s.txt',
+  filename <- sprintf('%s.results_all_mr',
                       output_file_prefix
                       )
   print('Saving MR analysis to:')
@@ -450,7 +450,7 @@ if (isTRUE(args[['--run-radial']])) {
   res_radial <- mr(harmonised, method_list = c("mr_ivw_radial"))
   # res_radial
   # Save to file:
-  filename <- sprintf('mr_radial_%s.txt',
+  filename <- sprintf('%s.results_mr_radial',
                       output_file_prefix
                       )
   print('Saving MR IVW radial analysis to:')
@@ -458,7 +458,7 @@ if (isTRUE(args[['--run-radial']])) {
   episcout::epi_write(res_radial, filename)
   # # Save full output:
   # needs sink to capture output to stdout from function call though
-  # filename <- sprintf('mr_radial_full_%s.txt',
+  # filename <- sprintf('%s.results_mr_radial_full',
   #                     output_file_prefix
   #                     )
   # print('Saving MR IVW radial full output analysis to:')
@@ -485,7 +485,7 @@ if (isTRUE(args[['--run-raps']])) {
   res_raps <- mr(harmonised, method_list = c("mr_raps"))
   # res_raps
   # Save to file:
-  filename <- sprintf('mr_raps_%s.txt',
+  filename <- sprintf('%s.results_mr_raps',
                       output_file_prefix
                       )
   print('Saving MR RAPS results to:')
@@ -530,7 +530,7 @@ egger_alpha <- as.numeric(args[['--egger-alpha']])
 # egger_penalized <- FALSE
 # egger_distribution <- 'normal'
 # egger_alpha <- 0.05
-
+# TO DO: check what extra info this provides
 egger <- MendelianRandomization::mr_egger(twoSMR_to_MR_pack,
                                           robust = egger_robust, # FALSE
                                           penalized = egger_penalized, # FALSE
@@ -541,7 +541,7 @@ egger <- MendelianRandomization::mr_egger(twoSMR_to_MR_pack,
 # str(egger)
 
 # Save to file:
-filename <- sprintf('mr_egger_i2_%s.txt',
+filename <- sprintf('%s.results_egger_i2',
                     output_file_prefix
                     )
 print('Saving Egger analysis to:')
@@ -555,10 +555,6 @@ capture.output(egger,
                )
 # NOTE:
 # If egger object is NULL, cat will print NULL to file
-# TO DO, better calculate as:
-#You can use mr_heterogeneity(dat) to obtain Q statistics, and then calculate Isq using
-#x <- mr_heterogeneity(dat)
-#(x$Q - x$Q_df) / x$Q) * 100
 ##########
 ######################
 
@@ -581,8 +577,13 @@ hetero_all <- TwoSampleMR::mr_heterogeneity(harmonised,
                                             method_list = hetero_meths
                                             )
 # hetero_all
+# TO DO, better calculate as:
+#You can use mr_heterogeneity(dat) to obtain Q statistics, and then calculate Isq using
+#x <- mr_heterogeneity(dat)
+#(x$Q - x$Q_df) / x$Q) * 100
+
 # Save to file:
-filename <- sprintf('mr_heterogeneity_%s.txt',
+filename <- sprintf('%s.results_heterogeneity',
                     output_file_prefix
                     )
 print('Saving heterogeneity analysis to:')
@@ -597,7 +598,7 @@ episcout::epi_write(hetero_all, filename)
 pleio <- TwoSampleMR::mr_pleiotropy_test(harmonised)
 # pleio
 # Save to file:
-filename <- sprintf('mr_pleiotropy_%s.txt',
+filename <- sprintf('%s.results_pleiotropy',
                     output_file_prefix
                     )
 print('Saving pleiotropy analysis to:')
@@ -619,7 +620,7 @@ res_loo <- TwoSampleMR::mr_leaveoneout(harmonised)
 # )
 # res_loo
 # Save to file:
-filename <- sprintf('mr_loo_IVW_%s.txt',
+filename <- sprintf('%s.results_loo',
                     output_file_prefix
                     )
 print('Saving leave one out analysis to:')
@@ -635,7 +636,7 @@ if (dim(harmonised)[1] > 1) {
   steiger <- TwoSampleMR::directionality_test(harmonised)
   # steiger
   # Save to file:
-  filename <- sprintf('mr_steiger_%s.txt',
+  filename <- sprintf('%s.results_steiger',
                       output_file_prefix
                       )
   print('Saving Steiger test to:')
@@ -681,7 +682,7 @@ if (dim(harmonised)[1] > 1) {
   # class(MRPRESSO$`MR-PRESSO results`)
   # str(MRPRESSO)
   # Save to file:
-  filename <- sprintf('mr_presso_%s.txt',
+  filename <- sprintf('%s.results_presso',
                       output_file_prefix
                       )
   print('Saving MRPRESSO analysis to:')

@@ -33,24 +33,37 @@ These are based on cgatcore and ruffus.
 For command line help type:
 
     pipeline_MR --help
+    pipeline_MR show full
+    pipeline_MR printconfig
+    pipeline_MR config # creates a copy of the yaml file in the working directory
+    pipeline_MR make full --local # run locally
+    nohup pipeline_MR make full & # submit to cluster, needs DRMAA
+    # Check the outputs in combined_results
 
 Configuration
 =============
 
-This pipeline is built using a Ruffus/CGAT approach. You need to have Python,
-Ruffus, CGAT core tools and any other specific dependencies needed for this
-script.
+This pipeline is built using a Ruffus/CGAT approach. You need to have Python, Ruffus, CGAT core tools and any other specific dependencies needed for this script.
 
 A configuration file was created at the same time as this script.
 
-Use this to extract any arbitrary parameters that could be changed in future
-re-runs of the pipeline.
+Use this to extract any arbitrary parameters that could be changed in future re-runs of the pipeline.
 
 
 Input files
 ===========
 
-Requires exposure and outcome tab-separated files as required by the R package TwoSampleMR.
+Requires exposure and outcome tab-separated files as required by the R package TwoSampleMR. Additionally:
+  - Outcome file names must have the suffix ".out_2SMR_tsv"
+  - The exposure file name (can contain multiple exposures) must have the suffix ".exp_2SMR_tsv"
+  - The exposure file must be named "exposure.2SMR_tsv"
+  - The outcome and exposure files must at least contain:
+    + SNP (rsID)
+    + Effect Allele
+    + Other Allele
+    + Beta (effect size)
+    + SE
+- A single column file with no header called 'exposure_instruments.txt' containing all exposure SNPs must be present in the working directory
 
 
 Pipeline output
@@ -105,9 +118,8 @@ import cgatcore.experiment as E
 
 _ROOT = os.path.abspath(os.path.dirname(__file__))
 def getDir(path = _ROOT):
-    ''' Get the absolute path to where this function resides. Useful for
-    determining the user's path to a package. If a sub-directory is given it
-    will be added to the path returned. Use '..' to go up directory levels. '''
+    ''' Get the absolute path to where this function resides. Useful for determining the user's path to a package. If a sub-directory is given it will be added to the path returned. Use '..' to go up directory levels.
+    '''
    # src_top_dir = os.path.abspath(os.path.join(_ROOT, '..'))
     src_dir = _ROOT
     return(os.path.abspath(os.path.join(src_dir, path)))
@@ -128,14 +140,14 @@ PARAMS = P.PARAMS
 # Specific pipeline tasks
 # Tools called need the full path or be directly callable
 
-
+# Keep as utility function, call manually though:
 @transform('*.csv',
            suffix('.csv'),
            '.csv_to_tsv'
            )
 def csv_to_tsv(infile, outfile):
     '''
-    Convert simple (no quotes) comma separated files to tab separated
+    Convert simple (no quotes) comma separated files to tab separated.
     '''
     # for parsa csv files:
     statement = '''cat %(infile)s | tr ',' '\\t' > %(outfile)s'''
@@ -143,15 +155,14 @@ def csv_to_tsv(infile, outfile):
     P.run(statement)
 
 
-#@follows(csv_to_tsv)
-@transform('*.csv_to_tsv',
-           suffix('.csv_to_tsv'),
-           '.rg_csv_to_tsv',
+@transform('*.out_2SMR_tsv', # exposure and outcome files must have this suffix to  be picked up
+           suffix('.out_2SMR_tsv'),
+           '.rg_2SMR_tsv',
            'exposure_instruments.txt',
            )
 def grep_SNPs(infile1, outfile, infile2):
     '''
-    Grep exposure SNPs from outcome files using ripgrep
+    Grep exposure SNPs from outcome files using ripgrep.
     '''
     # rg -wf cis_pqtl_instruments_SNPs_only.txt \
     # adj_PF_PLTF_WZ.tsv > \
@@ -162,161 +173,202 @@ def grep_SNPs(infile1, outfile, infile2):
 
 
 @follows(grep_SNPs)
-@transform('*.rg_csv_to_tsv',
-           suffix('.rg_csv_to_tsv'),
-           '.out_2SMR_tsv'
+@transform('*.rg_2SMR_tsv',
+           suffix('.rg_2SMR_tsv'),
+           '.2SMR_touch', # multiple outputs
+           'exposure.2SMR_tsv' # use a generic name
            )
-def parsa_to_2SMR(infile, outfile):
-    '''
-    Change column names to TwoSampleMR format for Parsa et al files 
-    '''
-    
-    statement = '''Rscript parsa_to_2SMR.R %(infile)s %(outfile)s
-                '''
-
-    P.run(statement)
-
-
-@follows(parsa_to_2SMR)
-@transform('*.out_2SMR_tsv',
-           suffix('.out_2SMR_tsv'),
-           '.out_2SMR_touch', # multiple outputs
-           'cis_pqtl.exp_2SMR_tsv' # use a generic name
-           )
-def ville_parsa_MR(outcome, outfile, exposure):
+def run_2SMR(outcome, outfile, exposure):
     '''
     Run MR analysis for Ville cytokines (exposure) and Parsa et al blood
-    cell traits (outcome)
+    cell traits (outcome).
     '''
     
-    statement = '''Rscript ville_parsa_MR.R %(exposure)s %(outcome)s ; 
+    statement = '''Rscript run_2SMR.R %(exposure)s %(outcome)s ; 
                    touch %(outfile)s
                 '''
 
     P.run(statement)
 
-# ###############
-# #####
-# mkdir combine_results
-# cd combine_results
-# #####
 
-# #####
-# # Get plots which are not empty and create single PDF:
-# # brew install poppler to get pdfunite
-# grep -L 'Insufficient' ../results_all/*svg
-# # convert svg to pdf:
-# #brew install librsvg
-# rsvg-convert -f pdf -o t.pdf t.svg
-
-# # convert all pdfs into single pdf:
-# pdfunite in-1.pdf in-2.pdf in-n.pdf out.pdf
-# #####
-
-# #####
-# # function to make table from:
-# # mr_single_SNP_pqtl_xxx.txt
-
-# cat ../results_all/single_SNP_wald_cis_pqtl_on_* | grep -v -e exposure -e Inverse -e Egger > single_SNP.tsv && \
-# echo -e "exposure\toutcome\tid.exposure\tid.outcome\tsamplesize\tSNP\tb\tse\tp" | cat - single_SNP.tsv > single_SNP.tsv2 && \
-# mv -f single_SNP.tsv2 single_SNP.tsv 
-# #####
-
-# #####
-# # mr_results_pqtl_xxx.txt
-
-# cat ../results_all/mr_all_cis_pqtl_on_* | grep -v id.exposure > mr_main.tsv && \
-# echo -e "id.exposure\tid.outcome\toutcome\texposure\tmethod\tnsnp\tb\tse\tpval\tlo_ci\tup_ci\tor\tor_lci95\tor_uci95" | cat - mr_main.tsv > mr_main.tsv2 && \
-# mv -f mr_main.tsv2 mr_main.tsv
-
-# # Get only results with IVW, sort and check how many are significant:
-# #cat single_SNP.summary_tsv | grep Inverse | cut -f1,2,6- | grep -v NA | sort -t$'\t' -k6 -g > #single_SNP_IVW_sorted.summary_tsv
-# #awk -F '\t' '{ if ($6 < 0.05) { print } }' single_SNP_IVW_sorted.summary_tsv | wc -l
-# #####
-
-# #####
-# # mr_heterogeneity_pqtl_xxx.txt
-
-# cat ../results_all/heterogeneity* | grep -v id.exposure > heterogeneity.tsv && \
-# echo -e "id.exposure\tid.outcome\toutcome\texposure\tmethod\tQ\tQ_df\tQ_pval" | cat - heterogeneity.tsv > heterogeneity.tsv2 && \
-# mv -f heterogeneity.tsv2 heterogeneity.tsv
-# #####
-
-# #####
-# # TO DO:
-# # mr_egger_i2_pqtl_xxx.txt
-
-# # This needs parsing to get exposure name from filename and results from free text file, see eg:
-# cat ../results_all/egger_i_squared_cis_pqtl_on_DF_EOSI_WX.txt 
-# #####
-
-# #####
-# # mr_loo_IVW_pqtl_xxx.txt
-
-# cat ../results_all/loo* | grep -v exposure > leave_one_out.tsv && \
-# echo -e "exposure\toutcome\tid.exposure\tid.outcome\tsamplesize\tSNP\tb\tse\tp" | cat - leave_one_out.tsv > leave_one_out.tsv2 && \
-# mv -f leave_one_out.tsv2 leave_one_out.tsv
-# #####
-
-# #####
-# # TO DO: haven't generated results
-# # mr_presso_pqtl_xxx.txt
-
-# #####
-
-# #####
-# # mr_pleiotropy_pqtl_xxx.txt
-
-# cat ../results_all/pleiotropy* | grep -v exposure > pleiotropy.tsv && \
-# echo -e "id.exposure\tid.outcome\toutcome\texposure\tegger_intercept\tse\tpval" | cat - pleiotropy.tsv > pleiotropy.tsv2 && \
-# mv -f pleiotropy.tsv2 pleiotropy.tsv
-# #####
-
-# #####
-# # TO DO: haven't generated results
-# # mr_steiger_pqtl_xxx.txt
-
-# #####
-# ###############
-
-
-#@follows(ville_parsa_MR)
+@mkdir('combined_results')
+@follows(run_2SMR)
 @transform('*.svg',
            suffix('.svg'),
            '.pdf'
            )
 def svg_to_pdf(infile, outfile):
     '''
-    Convert svg plots to PDFs and merge into single document
+    Convert svg plots to PDFs and merge into a single document.
     '''
-    #ln -s $(grep -L 'Insufficient' ../results_all/%(infile)s) . ;
-    statement = ''' 
-                    rsvg-convert -a -f pdf -o %(outfile)s %(infile)s
+
+    statement = ''' ln -s $(grep -L "Insufficient" %(infile)s) combined_results/ ;
+                    cd combined_results ;
+                    rsvg-convert -a -f pdf -o %(outfile)s %(infile)s ;
+                    cd ..
                 '''
 
     P.run(statement)
 
 
-#@follows(svg_to_pdf)
+@follows(svg_to_pdf)
 @merge(svg_to_pdf, 'all_plots.pdf')
 def combine_pdfs(infiles, summary_file):
     '''
-    Combine individual PDFs into single file
+    Combine individual PDFs into a single file.
     '''
-#pdfunite %(infiles)s %(summary_file)s
-    statement = ''' pdfunite *.pdf %(summary_file)s
+
+    statement = ''' cd combined_results ;
+                    pdfunite %(infiles)s %(summary_file)s ;
+                    cd ..
                 '''
 
     P.run(statement)
 
 
-# TO DO: combine results
+@follows(combine_pdfs)
+@merge('*.results_single_SNP',
+       'mr_single_SNP_summary.tsv'
+       )
+def single_SNP_summary(infile, outfile):
+    '''
+    Combine all results from single SNP analysis into a single table.
+    '''
+    
+    statement = ''' cat %(infile)s | grep -v -e exposure -e Inverse -e Egger > %(outfile)s ;
+                    echo -e "exposure\\toutcome\\tid.exposure\\tid.outcome\\tsamplesize\\tSNP\\tb\\tse\\tp" | cat - %(outfile)s > %(outfile)s2 ;
+                    mv -f %(outfile)s2 %(outfile)s ;
+                    mv %(outfile)s combined_results/
+                '''
 
+    P.run(statement)
+
+
+@follows(combine_pdfs)
+@merge('*.results_all_mr',
+       'mr_summary.tsv'
+       )
+def main_mr_summary(infile, outfile):
+    '''
+    Combine all results from the main MR analyses into a single table.
+    '''
+    
+    statement = ''' cat %(infile)s | grep -v id.exposure > %(outfile)s ;
+                    echo -e "id.exposure\\tid.outcome\\toutcome\\texposure\\tmethod\\tnsnp\\tb\\tse\\tpval\\tlo_ci\\tup_ci\\tor\\tor_lci95\\tor_uci95" | cat - %(outfile)s > %(outfile)s2 ;
+                    mv -f %(outfile)s2 %(outfile)s ;
+                    mv %(outfile)s combined_results/
+                '''
+
+    P.run(statement)
+
+# TO DO:
+# # Get only results with IVW, sort and check how many are significant:
+# #cat single_SNP.summary_tsv | grep Inverse | cut -f1,2,6- | grep -v NA | sort -t$'\\t' -k6 -g > #single_SNP_IVW_sorted.summary_tsv
+# #awk -F '\\t' '{ if ($6 < 0.05) { print } }' single_SNP_IVW_sorted.summary_tsv | wc -l
+
+# TO DO: collect MR Radial if called for
+# TO DO: collect MR RAPS if called for
+
+
+@follows(combine_pdfs)
+@merge('*.results_heterogeneity',
+       'heterogeneity_summary.tsv'
+       )
+def heterogeneity_summary(infile, outfile):
+    '''
+    Combine all results from the heterogeneity analysis into a single table.
+    '''
+    
+    statement = ''' cat %(infile)s  | grep -v id.exposure > %(outfile)s ;
+                    echo -e "id.exposure\\tid.outcome\\toutcome\\texposure\\tmethod\\tQ\\tQ_df\\tQ_pval" | cat - heterogeneity.tsv > %(outfile)s2 ;
+                    mv -f %(outfile)s2 %(outfile)s ;
+                    mv %(outfile)s combined_results/
+                '''
+
+    P.run(statement)
+
+
+# # TO DO:
+# # mr_egger_i2_pqtl_xxx.txt
+# # This needs parsing to get exposure name from filename and results from free text file, see eg:
+# cat ../results_all/egger_i_squared_cis_pqtl_on_DF_EOSI_WX.txt 
+# filename from run_2SMR.R is %s.results_egger_i2
+
+@follows(combine_pdfs)
+@merge('*.results_loo',
+       'loo_summary.tsv'
+       )
+def loo_summary(infile, outfile):
+    '''
+    Combine all results from the leave one out analysis into a single table.
+    '''
+    
+    statement = ''' cat %(infile)s | grep -v exposure > %(outfile)s ;
+                    echo -e "exposure\\toutcome\\tid.exposure\\tid.outcome\\tsamplesize\\tSNP\\tb\\tse\\tp" | cat - %(outfile)s > %(outfile)s2 ;
+                    mv -f %(outfile)s2 %(outfile)s ;
+                    mv %(outfile)s combined_results/
+                '''
+
+    P.run(statement)
+
+# TO DO: check PRESSO results
+@follows(combine_pdfs)
+@merge('*.results_presso',
+       'presso_summary.tsv'
+       )
+def presso_summary(infile, outfile):
+    '''
+    Combine all results from the MR PRESSO analysis into a single table.
+    '''
+    
+    statement = ''' cat %(infile)s | grep -v exposure > %(outfile)s ;
+                    echo -e "exposure\\toutcome\\tid.exposure\\tid.outcome\\tsamplesize\\tSNP\\tb\\tse\\tp" | cat - %(outfile)s > %(outfile)s2 ;
+                    mv -f %(outfile)s2 %(outfile)s ;
+                    mv %(outfile)s combined_results/
+                '''
+
+    P.run(statement)
+
+
+@follows(combine_pdfs)
+@merge('*.results_pleiotropy',
+       'pleiotropy_summary.tsv'
+       )
+def pleiotropy_summary(infile, outfile):
+    '''
+    Combine all results from the pleiotropy analysis into a single table.
+    '''
+    
+    statement = ''' cat %(infile)s | grep -v exposure > %(outfile)s ;;
+                    echo -e "id.exposure\\tid.outcome\\toutcome\\texposure\\tegger_intercept\\tse\\tpval" | cat - %(outfile)s > %(outfile)s2 ;
+                    mv -f %(outfile)s2 %(outfile)s ;
+                    mv %(outfile)s combined_results/                    
+                '''
+
+    P.run(statement)
+
+# TO DO: haven't generated results
+@follows(combine_pdfs)
+@merge('*.results_steiger',
+       'steiger_summary.tsv'
+       )
+def steiger_summary(infile, outfile):
+    '''
+    Combine all results from the Steiger directional analysis into a single table.
+    '''
+    
+    statement = ''' cat %(infile)s | grep -v exposure > %(outfile)s ;;
+                    echo -e "id.exposure\\tid.outcome\\toutcome\\texposure\\tegger_intercept\\tse\\tpval" | cat - %(outfile)s > %(outfile)s2 ;
+                    mv -f %(outfile)s2 %(outfile)s ;
+                    mv %(outfile)s combined_results/                    
+                '''
+
+    P.run(statement)
 ################
 
 ################
 # Copy to log enviroment from conda:
-@follows(ville_parsa_MR)
+@follows(combine_pdfs)
 @originate('conda_info.txt')
 def conda_info(outfile):
     '''
@@ -366,10 +418,7 @@ report_dir = 'pipeline_report'
 @follows(svg_to_pdf)
 @follows(mkdir(report_dir))
 def make_report():
-    ''' Generates html and pdf versions of restructuredText files
-        using sphinx-quickstart pre-configured files (conf.py and Makefile).
-        Pre-configured files need to be in a pre-existing report directory.
-        Existing reports are overwritten.
+    ''' Generates html and pdf versions of restructuredText files using sphinx-quickstart pre-configured files (conf.py and Makefile). Pre-configured files need to be in a pre-existing report directory. Existing reports are overwritten.
     '''
     report_path = os.path.abspath(os.path.join(os.path.dirname(__file__),
                                                'pipeline_report'

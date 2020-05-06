@@ -23,6 +23,9 @@
 ## External tools
 ## ---------------
 
+poppler # for pdfunite
+librsvg # for rsvg-convert
+
 ## R Packages
 
 data.table:
