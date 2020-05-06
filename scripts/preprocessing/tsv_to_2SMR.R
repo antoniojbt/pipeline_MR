@@ -105,13 +105,13 @@ colnames(mr_raw_data)
 
 
 ##########
-# Get phenotype fromm file names and add as column for each SNP:
+# Get phenotype from file names and add as column for each SNP:
 # pqtl_in_adj_PF_PLTF_WY.tsv
-pheno_name <- gsub('^.*?_', 'x', input_file)
-pheno_name <- gsub('^.*?_', '', pheno_name)
-pheno_name <- strsplit(pheno_name, split = '[.]')[[1]][1]
-# TO DO: if full file would only split at '.'
-# pheno_name <- strsplit(input_file, split = '[.]')[[1]][1]
+# only split at '.'
+pheno_name <- strsplit(input_file, split = '[.]')[[1]][1]
+#pheno_name <- gsub('^.*?_', 'x', input_file)
+#pheno_name <- gsub('^.*?_', '', pheno_name)
+#pheno_name <- strsplit(pheno_name, split = '[.]')[[1]][1]
 pheno_name
 
 mr_raw_data$Phenotype <- pheno_name

@@ -282,6 +282,54 @@ if (isTRUE(args[['--stop-clumping']])) {
 ##########
 
 ##########
+# TO DO:
+# Calculate F-statistic for each instrument:
+# For each of the instruments, if you have the SNP-exposure data then
+# qf(pval, df1=1, df2=samplesize-1, lower.tail=FALSE)
+# Save table with basic info for each instrument
+# ######
+# - Script: Test instrument strength with partial F statistics and r2 variance for each SNP, keep those > 10. This will exclude weak instruments and reduce weak instrument bias. A separate power calculation is needed however to test specific hypotheses.
+#     + Approximate F-statistic calculation
+#     + Exact F-statistic calculation
+#     + Calculate pooled F-statistic
+# eg:
+# For each of the instruments, if you have the SNP-exposure data then
+# qf(pval, df1=1, df2=samplesize-1, lower.tail=FALSE)
+
+
+# # From Xiyun:
+# # Variance explained and F-statistics
+# R2<-rep(0,275)
+# f_stats<-rep(0,275)
+# for(i in 1:275){
+#   R2[i] <-(2*(clumppped_data[i, 5])^2*clumppped_data[i, 4]*(1- clumppped_data[i, 4]))/(2*(clumppped_data[i, 5])^2*clumppped_data[i, 4]*(1- clumppped_data[i, 4]) + ((clumppped_data[i, 6])^2*2*462371*clumppped_data[i, 4]*(1-clumppped_data[i, 4])))
+#   f_stats[i] <- (R2[i]*(462371-2))/(1-R2[i])
+# }
+
+
+# # From Katie:
+# # 
+# # Formula for R^2:
+# #f_out[i]<-(2*(beta^2)*(MAF)*(1-(MAF)))/((2*(beta^2)*(MAF)*(1-(MAF)))+((se^2)*(2*N)*(MAF)*(1-(MAF))))
+
+# # -----  Compute F.statistic  -----------------
+
+# # df[i,11] = R2 
+# # df[i,9] = N
+
+# #f_out[i]<-(R2(N-2))/(1-R2)
+
+# F.stat<-rep(0,6)
+# for(i in 1:6){
+#   F.stat[i]<-(df[i,11]*(df[i,9] -2))/(1- df[i,11])
+# }
+
+# # Add to table :
+# df$F.stat<-F.stat
+# #######
+##########
+
+##########
 # Harmonise and clean up (this merges files as well):
 # Current are defaults
 action <- as.numeric(args[['--action']])
@@ -296,7 +344,7 @@ harmonised <- TwoSampleMR::harmonise_data(exposure_dat = exp_data,
 # dim(harmonised)
 
 # # Drop duplicate exposure-outcome summary sets:
-# # Drop by sample size:
+# # Drop by sample size, use this if the exposure is binary:
 # dat_prune_1 <- power_prune(harmonised, method = 1, dist.outcome = "binary")
 # dim(dat_prune_1)
 # # Drop by instrument strength:
@@ -507,6 +555,10 @@ capture.output(egger,
                )
 # NOTE:
 # If egger object is NULL, cat will print NULL to file
+# TO DO, better calculate as:
+#You can use mr_heterogeneity(dat) to obtain Q statistics, and then calculate Isq using
+#x <- mr_heterogeneity(dat)
+#(x$Q - x$Q_df) / x$Q) * 100
 ##########
 ######################
 

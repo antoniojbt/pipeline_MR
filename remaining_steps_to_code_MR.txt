@@ -25,6 +25,9 @@ use ieugwasr package
 ######
 - Script: Obtain proxy SNPs in high LD with exposure instruments (ideally r^2 = 1, at least > 0.8, from the same population). Ensure that the surrogate allele for the LD proxy SNPs are in phase with the effect allele of the original SNP.
 
+TwoSampleMR uses 1000G EUR phase 3 only, see
+https://github.com/MRCIEU/TwoSampleMR/issues/72
+
 see eg:
 https://github.com/katiedavis2918/VitaminD_Autoimmune_Conditions/blob/master/LDLinkR_proxies_Test.R
 
@@ -40,51 +43,9 @@ use ieugwasr package
 ######
 
 
-######
-- Script: Test instrument strength with partial F statistics and r2 variance for each SNP, keep those > 10. This will exclude weak instruments and reduce weak instrument bias. A separate power calculation is needed however to test specific hypotheses.
-    + Approximate F-statistic calculation
-    + Exact F-statistic calculation
-    + Calculate pooled F-statistic
-eg:
-For each of the instruments, if you have the SNP-exposure data then
-qf(pval, df1=1, df2=samplesize-1, lower.tail=FALSE)
-
-
-# From Xiyun:
-# Variance explained and F-statistics
-R2<-rep(0,275)
-f_stats<-rep(0,275)
-for(i in 1:275){
-  R2[i] <-(2*(clumppped_data[i, 5])^2*clumppped_data[i, 4]*(1- clumppped_data[i, 4]))/(2*(clumppped_data[i, 5])^2*clumppped_data[i, 4]*(1- clumppped_data[i, 4]) + ((clumppped_data[i, 6])^2*2*462371*clumppped_data[i, 4]*(1-clumppped_data[i, 4])))
-  f_stats[i] <- (R2[i]*(462371-2))/(1-R2[i])
-}
-
-
-# From Katie:
-# 
-# Formula for R^2:
-#f_out[i]<-(2*(beta^2)*(MAF)*(1-(MAF)))/((2*(beta^2)*(MAF)*(1-(MAF)))+((se^2)*(2*N)*(MAF)*(1-(MAF))))
-
-# -----  Compute F.statistic  -----------------
-
-# df[i,11] = R2 
-# df[i,9] = N
-
-#f_out[i]<-(R2(N-2))/(1-R2)
-
-F.stat<-rep(0,6)
-for(i in 1:6){
-  F.stat[i]<-(df[i,11]*(df[i,9] -2))/(1- df[i,11])
-}
-
-# Add to table :
-df$F.stat<-F.stat
-#######
-
-
 #######
 - Script: standardise direction of alleles eg:
-
+ Prob not needed as harmonise function does this:
 https://github.com/XiyunJiang/Bilirubin_MSc_MR/blob/cef8894f3485a1de4974b51baf434d6fb0e981b6/Method_analysis/Traditional_MR/using_chisq_MR_analysis.R#L87
 
 to line 135

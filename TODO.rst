@@ -1,39 +1,7 @@
-################################
-Plan 
-################################
 
-:Date: 
-:Author: 
-
-Current state
-##############
-
--
--
--
-
-
-Future work
-############
-
-
-
-Main tasks
+To do manually
 #################
 
-Plan:
-
-- What's the question?
-- Write project pipeline steps, scripts needed, pseudocode and sketch
-- Write scripts, write it up as a package
-- Check Travis setup: pep8, flake8, create unit tests
-- Update python and external dependencies file
-
------
-
-To do manually:
-
-- Upload to GitHub account
 - Manually connect to Travis for testing, add image to README.rst
 - Keep track of installations for Docker instructions
 - Manually connect to Zenodo, each release will trigger an archive and DOI
@@ -79,37 +47,3 @@ This will create a *"dist/"* folder which should contain a *".zip"* file that ca
 .. code-block:: python
 
 	python setup.py register sdist upload
-
-Add bdist_wininst to include a Windows graphical installer_.
-
-.. _diveintopython3: http://www.diveintopython3.net/packaging.html
-
-.. _registration:  https://pypi.python.org/pypi?:action=register_form)
-
-.. _installer: http://www.diveintopython3.net/packaging.html#bdist
-
-- You need to manually choose a license, classify your software using the PyPI classification system () and write a README.txt file.
-
-- See also CookieCutter's helpful tutorial_ for PyPi instructions.
-
-.. _tutorial: https://cookiecutter-pypackage.readthedocs.io/en/latest/pypi_release_checklist.html
-
-PIPELINE PLAN
-#############
-
-.. todo::
-
-	TO DO
-
------
-
-
-The output should be input for:
-
-
-References
-##########
-
-
-Also see:
-

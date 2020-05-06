@@ -1,5 +1,5 @@
 '''
-pipeline_name
+pipeline_MR
 =============
 
 :Author: |author_name|
@@ -16,23 +16,23 @@ Overview
 Purpose
 =======
 
-.. briefly describe the main purpose and methods of the pipeline
+Run two sample Mendelian Randomisation analysis.
 
 
 
 Usage and options
 =================
 
-These are based on CGATPipelines_ and Ruffus_, not docopt.
+These are based on cgatcore and ruffus.
 
-.. _CGATPipelines: https://github.com/CGATOxford/CGATPipelines
+.. _cgatcore: https://github.com/cgat-developers/cgat-core
 
-.. _Ruffus: http://www.ruffus.org.uk/
+.. _ruffus: https://github.com/cgat-developers/ruffus
 
 
 For command line help type:
 
-    python pipeline_pq_example.py --help
+    pipeline_MR --help
 
 Configuration
 =============
@@ -50,14 +50,13 @@ re-runs of the pipeline.
 Input files
 ===========
 
-.. Describe the input files needed, urls for reference and preferably place
-example data somewhere.
+Requires exposure and outcome tab-separated files as required by the R package TwoSampleMR.
 
 
 Pipeline output
 ===============
 
-.. Describe output files and results
+Plots and tables with 2SMR
 
 
 Requirements
@@ -65,13 +64,8 @@ Requirements
 
 cgat-core as well as the following software need to be in the path:
 
-.. Add any additional external requirements such as 3rd party software
-   or R modules below:
-
-Requirements:
-
-* R >= 3.4
-* Python >= 3.5
+* R
+* Various TwoSampleMR R packages
 
 Documentation
 =============
@@ -135,7 +129,7 @@ PARAMS = P.PARAMS
 # Tools called need the full path or be directly callable
 
 
-@transform('*.csv', # adj_PF_PLTF_WZ.csv
+@transform('*.csv',
            suffix('.csv'),
            '.csv_to_tsv'
            )
@@ -153,7 +147,7 @@ def csv_to_tsv(infile, outfile):
 @transform('*.csv_to_tsv',
            suffix('.csv_to_tsv'),
            '.rg_csv_to_tsv',
-           'exposure_instruments.txt', # cis_pqtl_instruments_SNPs_only.txt
+           'exposure_instruments.txt',
            )
 def grep_SNPs(infile1, outfile, infile2):
     '''
@@ -167,7 +161,7 @@ def grep_SNPs(infile1, outfile, infile2):
     P.run(statement)
 
 
-#@follows(grep_SNPs)
+@follows(grep_SNPs)
 @transform('*.rg_csv_to_tsv',
            suffix('.rg_csv_to_tsv'),
            '.out_2SMR_tsv'
@@ -183,24 +177,7 @@ def parsa_to_2SMR(infile, outfile):
     P.run(statement)
 
 
-# Only needs to be run once and is specific to one file:
-#@follows(grep_SNPs)
-@transform('cis_*.csv', # cis_pqtl_instruments.csv
-           suffix('.csv'),
-           '.exp_2SMR_tsv' # cis_pqtl.exp_2SMR_tsv
-           )
-def ville_to_2SMR(infile, outfile):
-    '''
-    Change column names to TwoSampleMR format for Ville pQTL file
-    '''
-    
-    statement = '''Rscript ville_to_2SMR.R %(infile)s %(outfile)s
-                '''
-
-    P.run(statement)
-
-
-#@follows(parsa_to_2SMR)
+@follows(parsa_to_2SMR)
 @transform('*.out_2SMR_tsv',
            suffix('.out_2SMR_tsv'),
            '.out_2SMR_touch', # multiple outputs
@@ -217,6 +194,90 @@ def ville_parsa_MR(outcome, outfile, exposure):
                 '''
 
     P.run(statement)
+
+# ###############
+# #####
+# mkdir combine_results
+# cd combine_results
+# #####
+
+# #####
+# # Get plots which are not empty and create single PDF:
+# # brew install poppler to get pdfunite
+# grep -L 'Insufficient' ../results_all/*svg
+# # convert svg to pdf:
+# #brew install librsvg
+# rsvg-convert -f pdf -o t.pdf t.svg
+
+# # convert all pdfs into single pdf:
+# pdfunite in-1.pdf in-2.pdf in-n.pdf out.pdf
+# #####
+
+# #####
+# # function to make table from:
+# # mr_single_SNP_pqtl_xxx.txt
+
+# cat ../results_all/single_SNP_wald_cis_pqtl_on_* | grep -v -e exposure -e Inverse -e Egger > single_SNP.tsv && \
+# echo -e "exposure\toutcome\tid.exposure\tid.outcome\tsamplesize\tSNP\tb\tse\tp" | cat - single_SNP.tsv > single_SNP.tsv2 && \
+# mv -f single_SNP.tsv2 single_SNP.tsv 
+# #####
+
+# #####
+# # mr_results_pqtl_xxx.txt
+
+# cat ../results_all/mr_all_cis_pqtl_on_* | grep -v id.exposure > mr_main.tsv && \
+# echo -e "id.exposure\tid.outcome\toutcome\texposure\tmethod\tnsnp\tb\tse\tpval\tlo_ci\tup_ci\tor\tor_lci95\tor_uci95" | cat - mr_main.tsv > mr_main.tsv2 && \
+# mv -f mr_main.tsv2 mr_main.tsv
+
+# # Get only results with IVW, sort and check how many are significant:
+# #cat single_SNP.summary_tsv | grep Inverse | cut -f1,2,6- | grep -v NA | sort -t$'\t' -k6 -g > #single_SNP_IVW_sorted.summary_tsv
+# #awk -F '\t' '{ if ($6 < 0.05) { print } }' single_SNP_IVW_sorted.summary_tsv | wc -l
+# #####
+
+# #####
+# # mr_heterogeneity_pqtl_xxx.txt
+
+# cat ../results_all/heterogeneity* | grep -v id.exposure > heterogeneity.tsv && \
+# echo -e "id.exposure\tid.outcome\toutcome\texposure\tmethod\tQ\tQ_df\tQ_pval" | cat - heterogeneity.tsv > heterogeneity.tsv2 && \
+# mv -f heterogeneity.tsv2 heterogeneity.tsv
+# #####
+
+# #####
+# # TO DO:
+# # mr_egger_i2_pqtl_xxx.txt
+
+# # This needs parsing to get exposure name from filename and results from free text file, see eg:
+# cat ../results_all/egger_i_squared_cis_pqtl_on_DF_EOSI_WX.txt 
+# #####
+
+# #####
+# # mr_loo_IVW_pqtl_xxx.txt
+
+# cat ../results_all/loo* | grep -v exposure > leave_one_out.tsv && \
+# echo -e "exposure\toutcome\tid.exposure\tid.outcome\tsamplesize\tSNP\tb\tse\tp" | cat - leave_one_out.tsv > leave_one_out.tsv2 && \
+# mv -f leave_one_out.tsv2 leave_one_out.tsv
+# #####
+
+# #####
+# # TO DO: haven't generated results
+# # mr_presso_pqtl_xxx.txt
+
+# #####
+
+# #####
+# # mr_pleiotropy_pqtl_xxx.txt
+
+# cat ../results_all/pleiotropy* | grep -v exposure > pleiotropy.tsv && \
+# echo -e "id.exposure\tid.outcome\toutcome\texposure\tegger_intercept\tse\tpval" | cat - pleiotropy.tsv > pleiotropy.tsv2 && \
+# mv -f pleiotropy.tsv2 pleiotropy.tsv
+# #####
+
+# #####
+# # TO DO: haven't generated results
+# # mr_steiger_pqtl_xxx.txt
+
+# #####
+# ###############
 
 
 #@follows(ville_parsa_MR)
