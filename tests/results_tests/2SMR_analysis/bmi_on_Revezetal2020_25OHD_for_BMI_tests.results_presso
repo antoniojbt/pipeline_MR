@@ -1,0 +1,61 @@
+MRPRESSO tests from MRPRESSO package to detect pleiotropy (global test) and outliers (outlier test)
+
+$`Main MR results`
+       Exposure       MR Analysis Causal Estimate          Sd    T-stat
+1 beta_exposure               Raw     -0.02015810 0.005065025 -3.979863
+2 beta_exposure Outlier-corrected     -0.01943671 0.004325388 -4.493633
+       P-value
+1 0.0005217320
+2 0.0001644614
+
+$`MR-PRESSO results`
+$`MR-PRESSO results`$`Global Test`
+$`MR-PRESSO results`$`Global Test`$RSSobs
+[1] 92.49636
+
+$`MR-PRESSO results`$`Global Test`$Pvalue
+[1] "<0.001"
+
+
+$`MR-PRESSO results`$`Outlier Test`
+                 RSSobs Pvalue
+rs10150332 1.152829e-05      1
+rs10767664 1.470742e-05      1
+rs10938397 1.044706e-06      1
+rs10968576 1.196238e-05      1
+rs11847697 1.863774e-04  0.208
+rs12444979 4.562964e-05  0.494
+rs13078807 9.435736e-05 <0.026
+rs1555543  2.396296e-09      1
+rs1558902  5.068294e-05  0.234
+rs206936   1.481265e-05      1
+rs2112347  5.586781e-06      1
+rs2241423  7.541271e-07      1
+rs2287019  3.485167e-06      1
+rs2815752  6.390991e-05 <0.026
+rs2867125  1.163314e-05      1
+rs2890652  1.197284e-05      1
+rs29941    5.277653e-06      1
+rs3817334  1.101295e-05      1
+rs4929949  1.558997e-08      1
+rs543874   1.054871e-05      1
+rs571312   4.031896e-05   0.26
+rs713586   3.604021e-08      1
+rs7138803  2.441605e-07      1
+rs887912   2.629773e-05  0.754
+rs9816226  2.078159e-06      1
+rs987237   1.548954e-05      1
+
+$`MR-PRESSO results`$`Distortion Test`
+$`MR-PRESSO results`$`Distortion Test`$`Outliers Indices`
+[1]  7 14
+
+$`MR-PRESSO results`$`Distortion Test`$`Distortion Coefficient`
+beta_exposure 
+    -3.711523 
+
+$`MR-PRESSO results`$`Distortion Test`$Pvalue
+[1] 0.905
+
+
+

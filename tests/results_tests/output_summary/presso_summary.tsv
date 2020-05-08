@@ -1,0 +1,118 @@
+exposure	outcome	id.exposure	id.outcome	samplesize	SNP	b	se	p
+MRPRESSO tests from MRPRESSO package to detect pleiotropy (global test) and outliers (outlier test)
+
+$`Main MR results`
+       Exposure       MR Analysis Causal Estimate          Sd    T-stat
+       P-value
+1 0.0005217320
+2 0.0001644614
+
+$`MR-PRESSO results`
+$`MR-PRESSO results`$`Global Test`
+$`MR-PRESSO results`$`Global Test`$RSSobs
+[1] 92.49636
+
+$`MR-PRESSO results`$`Global Test`$Pvalue
+[1] "<0.001"
+
+
+$`MR-PRESSO results`$`Outlier Test`
+                 RSSobs Pvalue
+rs10150332 1.152829e-05      1
+rs10767664 1.470742e-05      1
+rs10938397 1.044706e-06      1
+rs10968576 1.196238e-05      1
+rs11847697 1.863774e-04  0.208
+rs12444979 4.562964e-05  0.494
+rs13078807 9.435736e-05 <0.026
+rs1555543  2.396296e-09      1
+rs1558902  5.068294e-05  0.234
+rs206936   1.481265e-05      1
+rs2112347  5.586781e-06      1
+rs2241423  7.541271e-07      1
+rs2287019  3.485167e-06      1
+rs2815752  6.390991e-05 <0.026
+rs2867125  1.163314e-05      1
+rs2890652  1.197284e-05      1
+rs29941    5.277653e-06      1
+rs3817334  1.101295e-05      1
+rs4929949  1.558997e-08      1
+rs543874   1.054871e-05      1
+rs571312   4.031896e-05   0.26
+rs713586   3.604021e-08      1
+rs7138803  2.441605e-07      1
+rs887912   2.629773e-05  0.754
+rs9816226  2.078159e-06      1
+rs987237   1.548954e-05      1
+
+$`MR-PRESSO results`$`Distortion Test`
+$`MR-PRESSO results`$`Distortion Test`$`Outliers Indices`
+[1]  7 14
+
+$`MR-PRESSO results`$`Distortion Test`$`Distortion Coefficient`
+    -3.711523 
+
+$`MR-PRESSO results`$`Distortion Test`$Pvalue
+[1] 0.905
+
+
+
+MRPRESSO tests from MRPRESSO package to detect pleiotropy (global test) and outliers (outlier test)
+
+$`Main MR results`
+       Exposure       MR Analysis Causal Estimate        Sd   T-stat
+       P-value
+1 1.652727e-07
+2           NA
+
+$`MR-PRESSO results`
+$`MR-PRESSO results`$`Global Test`
+$`MR-PRESSO results`$`Global Test`$RSSobs
+[1] 44.80415
+
+$`MR-PRESSO results`$`Global Test`$Pvalue
+[1] 0.047
+
+
+$`MR-PRESSO results`$`Outlier Test`
+                 RSSobs Pvalue
+rs10150332 3.838037e-05      1
+rs10767664 2.744824e-05      1
+rs10938397 1.162227e-04      1
+rs10968576 1.343608e-04      1
+rs11847697 2.045400e-03  0.999
+rs12444979 7.860717e-04      1
+rs13078807 9.722470e-04  0.432
+rs1555543  1.891661e-05      1
+rs1558902  4.121608e-04      1
+rs206936   2.614495e-05      1
+rs2112347  3.180397e-05      1
+rs2241423  3.867715e-07      1
+rs2287019  5.055782e-04      1
+rs2815752  2.063025e-05      1
+rs2867125  1.428229e-06      1
+rs2890652  3.935018e-05      1
+rs29941    5.376379e-06      1
+rs3817334  4.256138e-05      1
+rs4771122  4.367544e-05      1
+rs4929949  2.173314e-05      1
+rs543874   3.449502e-04      1
+rs571312   1.177643e-03  0.054
+rs713586   1.352766e-05      1
+rs7138803  3.191271e-05      1
+rs887912   1.148146e-04      1
+rs9816226  3.566641e-04      1
+rs987237   1.137208e-04      1
+
+$`MR-PRESSO results`$`Distortion Test`
+$`MR-PRESSO results`$`Distortion Test`$`Outliers Indices`
+[1] "No significant outliers"
+
+$`MR-PRESSO results`$`Distortion Test`$`Distortion Coefficient`
+[1] NA
+
+$`MR-PRESSO results`$`Distortion Test`$Pvalue
+[1] NA
+
+
+

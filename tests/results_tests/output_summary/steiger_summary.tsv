@@ -1,0 +1,3 @@
+id.exposure	id.outcome	outcome	exposure	egger_intercept	se	pval
+NceCi3	8YvPw2	BMI	outcome	0.0109963442400885	0.000321367813419035	TRUE	7.18515516095849e-245
+nkxbXZ	7	BMI	Coronary heart disease	0.011168143184784	0.000629336538339151	TRUE	1.17426644303237e-146

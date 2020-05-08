@@ -1,0 +1,9 @@
+id.exposure	id.outcome	outcome	exposure	method	Q	Q_df	Q_pval
+NceCi3	8YvPw2	outcome	BMI	Maximum likelihood	79.0600637584676	25	1.60064979760976e-07
+NceCi3	8YvPw2	outcome	BMI	MR Egger	76.9254573178855	24	1.86503316578787e-07
+NceCi3	8YvPw2	outcome	BMI	Inverse variance weighted	82.0910654162212	25	5.34607021552753e-08
+NceCi3	8YvPw2	outcome	BMI	Unweighted regression	0.000580916930524638	25	1
+nkxbXZ	7	Coronary heart disease	BMI	Maximum likelihood	37.4536488665502	26	0.0679984999663424
+nkxbXZ	7	Coronary heart disease	BMI	MR Egger	39.6870234061048	25	0.0313963400781558
+nkxbXZ	7	Coronary heart disease	BMI	Inverse variance weighted	39.6870304756895	26	0.0418578570518242
+nkxbXZ	7	Coronary heart disease	BMI	Unweighted regression	0.00682424296571012	26	1

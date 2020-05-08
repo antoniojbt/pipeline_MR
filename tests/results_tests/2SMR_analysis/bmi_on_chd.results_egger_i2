@@ -1,0 +1,15 @@
+MR Egger test from MendelianRandomization package to obtain I-squared
+
+MR-Egger method
+(variants uncorrelated, random-effect model)
+
+Number of Variants =  27 
+
+------------------------------------------------------------------
+      Method Estimate Std Error  95% CI       p-value
+    MR-Egger    0.114     0.033  0.049, 0.178   0.001
+ (intercept)    0.000     0.005 -0.010, 0.010   0.998
+------------------------------------------------------------------
+Residual Standard Error :  1.260 
+Heterogeneity test statistic = 39.6870 on 25 degrees of freedom, (p-value = 0.0314)
+I^2_GX statistic: 91.5%

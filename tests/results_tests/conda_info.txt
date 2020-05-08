@@ -1,0 +1,62 @@
+
+     active environment : ds
+    active env location : /Users/antoniob/Applications/miniconda3/envs/ds
+            shell level : 2
+       user config file : /Users/antoniob/.condarc
+ populated config files : /Users/antoniob/.condarc
+          conda version : 4.8.2
+    conda-build version : not installed
+         python version : 3.7.6.final.0
+       virtual packages : __osx=10.14.6
+       base environment : /Users/antoniob/Applications/miniconda3  (writable)
+           channel URLs : https://conda.anaconda.org/conda-forge/osx-64
+                          https://conda.anaconda.org/conda-forge/noarch
+                          https://repo.anaconda.com/pkgs/main/osx-64
+                          https://repo.anaconda.com/pkgs/main/noarch
+                          https://repo.anaconda.com/pkgs/r/osx-64
+                          https://repo.anaconda.com/pkgs/r/noarch
+                          https://conda.anaconda.org/bioconda/osx-64
+                          https://conda.anaconda.org/bioconda/noarch
+          package cache : /Users/antoniob/Applications/miniconda3/pkgs
+                          /Users/antoniob/.conda/pkgs
+       envs directories : /Users/antoniob/Applications/miniconda3/envs
+                          /Users/antoniob/.conda/envs
+               platform : osx-64
+             user-agent : conda/4.8.2 requests/2.23.0 CPython/3.7.6 Darwin/18.7.0 OSX/10.14.6
+                UID:GID : 501:20
+             netrc file : None
+           offline mode : False
+
+# conda environments:
+#
+base                     /Users/antoniob/Applications/miniconda3
+bgwas3                   /Users/antoniob/Applications/miniconda3/envs/bgwas3
+cgat                     /Users/antoniob/Applications/miniconda3/envs/cgat
+ds                    *  /Users/antoniob/Applications/miniconda3/envs/ds
+vs                       /Users/antoniob/Applications/miniconda3/envs/vs
+
+sys.version: 3.7.6 | packaged by conda-forge | (defau...
+sys.prefix: /Users/antoniob/Applications/miniconda3
+sys.executable: /Users/antoniob/Applications/miniconda3/bin/python
+conda location: /Users/antoniob/Applications/miniconda3/lib/python3.7/site-packages/conda
+conda-build: None
+conda-env: /Users/antoniob/Applications/miniconda3/bin/conda-env
+user site dirs: 
+
+CIO_TEST: <not set>
+CMAKE_PREFIX_PATH: :/Users/antoniob/Applications/miniconda3/envs/ds
+CONDA_BACKUP_HOST: x86_64-apple-darwin13.4.0
+CONDA_BACKUP_LDFLAGS:  -Wl,-rpath,/Users/antoniob/Applications/miniconda3/envs/ds/lib -L/Users/antoniob/Applications/miniconda3/envs/ds/lib
+CONDA_BUILD_SYSROOT: /Library/Developer/CommandLineTools/SDKs/MacOSX.sdk
+CONDA_DEFAULT_ENV: ds
+CONDA_EXE: /Users/antoniob/Applications/miniconda3/bin/conda
+CONDA_PREFIX: /Users/antoniob/Applications/miniconda3/envs/ds
+CONDA_PREFIX_1: /Users/antoniob/Applications/miniconda3
+CONDA_PROMPT_MODIFIER: (ds) 
+CONDA_PYTHON_EXE: /Users/antoniob/Applications/miniconda3/bin/python
+CONDA_ROOT: /Users/antoniob/Applications/miniconda3
+CONDA_SHLVL: 2
+PATH: /Users/antoniob/Applications/miniconda3/envs/ds/bin:/Users/antoniob/Applications/miniconda3/condabin:/usr/local/texlive/2017/bin/x86_64-darwin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/X11/bin:/Library/Frameworks/R.framework/Resources/bin/Rscript:~/Documents/github.dir/AntonioJBT/various.dir/scripts:/Library/TeX/texbin:/Users/antoniob/Documents/github.dir/bin_symlinks:/Users/antoniob/Documents/github.dir/cgat_projects:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/usr/local/ncbi/blast/bin:/Library/TeX/texbin:/usr/local/MacGPG2/bin:/opt/X11/bin
+REQUESTS_CA_BUNDLE: <not set>
+SSL_CERT_FILE: <not set>
+
