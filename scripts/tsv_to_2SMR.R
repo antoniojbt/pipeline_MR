@@ -1,12 +1,12 @@
 ##########
-# Cytokines and blood cell traits MR
-# March 2020
+# pipeline_MR utility scripts
+# April 2020
 # Antonio
-# Format Parsa et al data (blood cell traits) for TwoSampleMR
+# Format GWAS summary data for TwoSampleMR package
 ##########
 
 ##########
-# setwd('~/Documents/quickstart_projects/projects/cytokines_blood_traits_MR/results/parsa_to_2SMR/')
+# setwd('/Users/antoniob/Documents/github.dir/AntonioJBT/pipeMR/tests/testthat/')
 ##########
 
 ##########
@@ -22,14 +22,11 @@ library(episcout)
 ##########
 
 ##########
-# Read in full Ville pQTL file
-
-# input_file <- 'pqtl_in_adj_PF_PLTF_WY.tsv'
-# input_file <- 'adj_PF_PLTF_WY.tsv'
+# Read in full file
+# input_file <- ''
 input_file <- as.character(args[1])
 # Header false if using grep'd files other T
 mr_raw_data <- episcout::epi_read(input_file, header = F)
-# mr_raw_data <- episcout::epi_read(input_file, header = T)
 epi_head_and_tail(mr_raw_data)
 epi_head_and_tail(mr_raw_data, last_cols = T)
 # epi_clean_get_dups(mr_raw_data)
@@ -40,31 +37,11 @@ str(mr_raw_data)
 
 ##########
 # TO DO: skip if full file
-# Parsa et al column names (lost during grepping):
-# Add back column names
+# Get column names and add back as lost during grepping:
 colnames(mr_raw_data)
-#VARIANT	chr	bp	ID	GENPOS	REF	ALT	EFFECT	P	DIRECTION	MLOG10P	SE	ALT_FREQ	ALT_MINOR	MA_FREQ	R2	GWSIG	INFO
-colnames_parsa <- c('VARIANT',
-                    'chr',
-                    'bp',
-                    'ID',
-                    'GENPOS',
-                    'REF',
-                    'ALT',
-                    'EFFECT',
-                    'P',
-                    'DIRECTION',
-                    'MLOG10P',
-                    'SE',
-                    'ALT_FREQ',
-                    'ALT_MINOR',
-                    'MA_FREQ',
-                    'R2',
-                    'GWSIG',
-                    'INFO'
-                    )
+colnames_to_change <- c()
 
-colnames(mr_raw_data) <- colnames_parsa
+colnames(mr_raw_data) <- colnames_to_change
 colnames(mr_raw_data)
 epi_head_and_tail(mr_raw_data)
 # View(mr_raw_data)
@@ -84,7 +61,7 @@ epi_head_and_tail(mr_raw_data)
 # "other_allele",
 # "pval",
 
-# Missing in Ville pqtl:
+# Missing:
 # "samplesize",
 # "units",
 # "ncase",
@@ -106,13 +83,9 @@ colnames(mr_raw_data)
 
 ##########
 # Get phenotype from file names and add as column for each SNP:
-# pqtl_in_adj_PF_PLTF_WY.tsv
-# only split at '.'
+# ideally only split at '.'
 pheno_name <- strsplit(input_file, split = '[.]')[[1]][1]
-#pheno_name <- gsub('^.*?_', 'x', input_file)
-#pheno_name <- gsub('^.*?_', '', pheno_name)
-#pheno_name <- strsplit(pheno_name, split = '[.]')[[1]][1]
-pheno_name
+§pheno_name
 
 mr_raw_data$Phenotype <- pheno_name
 mr_raw_data[, 'Phenotype']

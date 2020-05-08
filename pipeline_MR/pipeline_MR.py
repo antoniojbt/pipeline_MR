@@ -38,7 +38,7 @@ For command line help type:
     pipeline_MR config # creates a copy of the yaml file in the working directory
     pipeline_MR make full --local # run locally
     nohup pipeline_MR make full & # submit to cluster, needs DRMAA
-    # Check the outputs in combined_results
+    # Check the outputs in output_summary
 
 Configuration
 =============
@@ -55,7 +55,9 @@ Input files
 
 Requires exposure and outcome tab-separated files as required by the R package TwoSampleMR. Additionally:
   - Outcome file names must have the suffix ".out_2SMR_tsv"
-  - The exposure file name (can contain multiple exposures) must be named "exposure.2SMR_tsv"
+  - The exposure file name (can contain multiple exposures) must be called "exposure.2SMR_tsv"
+  - Only one exposure file is accepted but many outcome files can be passed
+  - To have phentoype names in plots and tables include a 'Phenotype' column in the exposure file
   - The outcome and exposure files must at least contain:
     + SNP (rsID)
     + Effect Allele
@@ -163,8 +165,10 @@ def grep_SNPs(infile1, outfile, infile2):
     '''
     Grep exposure SNPs from outcome files using ripgrep.
     '''
-    statement = '''rg -wf %(infile2)s %(infile1)s > %(outfile)s '''
-    
+    statement = ''' head -n 1 %(infile1)s > %(infile1)s.header &&
+                    rg -wf %(infile2)s %(infile1)s | cat %(infile1)s.header - > %(outfile)s && rm -f %(infile1)s.header
+                '''
+
     P.run(statement)
 
 
@@ -172,8 +176,7 @@ def grep_SNPs(infile1, outfile, infile2):
 @transform('*.rg_2SMR_tsv',
            suffix('.rg_2SMR_tsv'),
            '.2SMR_touch', # multiple outputs
-           'exposure.2SMR_tsv' # use a generic name
-           )
+           'exposure.2SMR_tsv') # must have this name
 def run_2SMR(outcome, outfile, exposure):
     '''
     Run MR analysis.
@@ -187,79 +190,106 @@ def run_2SMR(outcome, outfile, exposure):
 
     statement = '''Rscript run_2SMR.R --exposure %(exposure)s \
                                       --outcome %(outcome)s \
-                                      %(run_2SMR_options)s    
-                                          ; 
+                                      %(run_2SMR_options)s &&
                    touch %(outfile)s
                 '''
 
     P.run(statement)
 
-
-@follows(mkdir('combined_results'), run_2SMR)
-@transform('*.svg',
-           suffix('.svg'),
-           '.pdf'
+@posttask(touch_file('svg_to_pdf.touch'))
+@follows(mkdir('output_summary'), run_2SMR)
+@transform('*.results.svg',
+           suffix('.results.svg'),
+           '.results.pdf'
            )
 def svg_to_pdf(infile, outfile):
     '''
     Convert svg plots to PDFs and merge into a single document.
     '''
 
-    statement = ''' ln -s $(grep -L "Insufficient" %(infile)s) combined_results/ ;
-                    cd combined_results ;
-                    rsvg-convert -a -f pdf -o %(outfile)s %(infile)s ;
+    statement = ''' ln -rs $(grep -L "Insufficient" %(infile)s) -t output_summary/ &&
+                    cd output_summary &&
+                    rsvg-convert -a -f pdf -o %(outfile)s %(infile)s &&
+                    rm -rf %(infile)s &&
+                    ln -rs %(outfile)s -t .. &&
                     cd ..
                 '''
 
     P.run(statement)
 
 
+# Remove strings from ruffus infiles when more than one is passed as it will be verbatim
+def remove_str_ruffus_files(infiles):
+    ''' Remove strings which get passed verbatim in ruffus '''
+    infiles = str(infiles)
+    infiles = infiles.replace("'", "")
+    infiles = infiles.replace("[", "")
+    infiles = infiles.replace("]", "")
+    infiles = infiles.replace(",", "")
+    
+    return(infiles)
+
+
+@posttask(touch_file('combine_pdfs.touch'))
 @follows(svg_to_pdf)
 @merge(svg_to_pdf, 'all_plots.pdf')
 def combine_pdfs(infiles, summary_file):
     '''
     Combine individual PDFs into a single file.
-    '''
+    ''' 
 
-    statement = ''' cd combined_results ;
-                    pdfunite %(infiles)s %(summary_file)s ;
-                    cd ..
-                '''
+    if (len(infiles) > 1):
+        # Convert infiles list to str and remove characters:
+        infiles = remove_str_ruffus_files(infiles)
+        
+        statement = ''' cd output_summary &&
+                        pdfunite %(infiles)s %(summary_file)s &&
+                        cd ..
+                    '''
 
-    P.run(statement)
+        P.run(statement)                
+
+    else:
+        E.warn('Only one pdf file present, not combining files.')
 
 
+@posttask(touch_file('single_SNP_summary.touch'))
 @follows(combine_pdfs)
 @merge('*.results_single_SNP',
        'mr_single_SNP_summary.tsv'
        )
-def single_SNP_summary(infile, outfile):
+def single_SNP_summary(infiles, outfile):
     '''
     Combine all results from single SNP analysis into a single table.
     '''
+    # Convert infiles list to str and remove characters:
+    infiles = remove_str_ruffus_files(infiles)
     
-    statement = ''' cat %(infile)s | grep -v -e exposure -e Inverse -e Egger > %(outfile)s ;
-                    echo -e "exposure\\toutcome\\tid.exposure\\tid.outcome\\tsamplesize\\tSNP\\tb\\tse\\tp" | cat - %(outfile)s > %(outfile)s2 ;
-                    mv -f %(outfile)s2 %(outfile)s ;
-                    mv %(outfile)s combined_results/
+    statement = ''' cat %(infiles)s | grep -v -e exposure -e Inverse -e Egger > %(outfile)s &&
+                    echo -e "exposure\\toutcome\\tid.exposure\\tid.outcome\\tsamplesize\\tSNP\\tb\\tse\\tp" | cat - %(outfile)s > %(outfile)s2 &&
+                    mv -f %(outfile)s2 %(outfile)s &&
+                    mv %(outfile)s output_summary/
                 '''
 
     P.run(statement)
 
 
+@posttask(touch_file('main_mr_summary.touch'))
 @follows(single_SNP_summary)
 @merge('*.results_all_mr',
        'mr_summary.tsv'
        )
-def main_mr_summary(infile, outfile):
+def main_mr_summary(infiles, outfile):
     '''
     Combine all results from the main MR analyses into a single table.
     '''
-    
-    statement = ''' cat %(infile)s | grep -v id.exposure > %(outfile)s ;
-                    echo -e "id.exposure\\tid.outcome\\toutcome\\texposure\\tmethod\\tnsnp\\tb\\tse\\tpval\\tlo_ci\\tup_ci\\tor\\tor_lci95\\tor_uci95" | cat - %(outfile)s > %(outfile)s2 ;
-                    mv -f %(outfile)s2 %(outfile)s ;
-                    mv %(outfile)s combined_results/
+    # Convert infiles list to str and remove characters:
+    infiles = remove_str_ruffus_files(infiles)
+
+    statement = ''' cat %(infiles)s | grep -v id.exposure > %(outfile)s &&
+                    echo -e "id.exposure\\tid.outcome\\toutcome\\texposure\\tmethod\\tnsnp\\tb\\tse\\tpval\\tlo_ci\\tup_ci\\tor\\tor_lci95\\tor_uci95" | cat - %(outfile)s > %(outfile)s2 &&
+                    mv -f %(outfile)s2 %(outfile)s &&
+                    mv %(outfile)s output_summary/
                 '''
 
     P.run(statement)
@@ -273,19 +303,22 @@ def main_mr_summary(infile, outfile):
 # TO DO: collect MR RAPS if called for
 
 
+@posttask(touch_file('main_mr_summary.touch'))
 @follows(main_mr_summary)
 @merge('*.results_heterogeneity',
        'heterogeneity_summary.tsv'
        )
-def heterogeneity_summary(infile, outfile):
+def heterogeneity_summary(infiles, outfile):
     '''
     Combine all results from the heterogeneity analysis into a single table.
     '''
-    
-    statement = ''' cat %(infile)s  | grep -v id.exposure > %(outfile)s ;
-                    echo -e "id.exposure\\tid.outcome\\toutcome\\texposure\\tmethod\\tQ\\tQ_df\\tQ_pval" | cat - heterogeneity.tsv > %(outfile)s2 ;
-                    mv -f %(outfile)s2 %(outfile)s ;
-                    mv %(outfile)s combined_results/
+    # Convert infiles list to str and remove characters:
+    infiles = remove_str_ruffus_files(infiles)
+
+    statement = ''' cat %(infiles)s  | grep -v id.exposure > %(outfile)s &&
+                    echo -e "id.exposure\\tid.outcome\\toutcome\\texposure\\tmethod\\tQ\\tQ_df\\tQ_pval" | cat - %(outfile)s > %(outfile)s2 &&
+                    mv -f %(outfile)s2 %(outfile)s &&
+                    mv %(outfile)s output_summary/
                 '''
 
     P.run(statement)
@@ -297,73 +330,104 @@ def heterogeneity_summary(infile, outfile):
 # cat ../results_all/egger_i_squared_cis_pqtl_on_DF_EOSI_WX.txt 
 # filename from run_2SMR.R is %s.results_egger_i2
 
+
+@posttask(touch_file('loo_summary.touch'))
 @follows(heterogeneity_summary)
 @merge('*.results_loo',
        'loo_summary.tsv'
        )
-def loo_summary(infile, outfile):
+def loo_summary(infiles, outfile):
     '''
     Combine all results from the leave one out analysis into a single table.
     '''
-    
-    statement = ''' cat %(infile)s | grep -v exposure > %(outfile)s ;
-                    echo -e "exposure\\toutcome\\tid.exposure\\tid.outcome\\tsamplesize\\tSNP\\tb\\tse\\tp" | cat - %(outfile)s > %(outfile)s2 ;
-                    mv -f %(outfile)s2 %(outfile)s ;
-                    mv %(outfile)s combined_results/
+    # Convert infiles list to str and remove characters:
+    infiles = remove_str_ruffus_files(infiles)
+
+    statement = ''' cat %(infiles)s | grep -v exposure > %(outfile)s &&
+                    echo -e "exposure\\toutcome\\tid.exposure\\tid.outcome\\tsamplesize\\tSNP\\tb\\tse\\tp" | cat - %(outfile)s > %(outfile)s2 &&
+                    mv -f %(outfile)s2 %(outfile)s &&
+                    mv %(outfile)s output_summary/
                 '''
 
     P.run(statement)
 
-# TO DO: check PRESSO results
+# TO DO: PRESSO results need to be parsed in run_2SMR
+@posttask(touch_file('presso_summary.touch'))
 @follows(loo_summary)
 @merge('*.results_presso',
        'presso_summary.tsv'
        )
-def presso_summary(infile, outfile):
+def presso_summary(infiles, outfile):
     '''
     Combine all results from the MR PRESSO analysis into a single table.
     '''
-    
-    statement = ''' cat %(infile)s | grep -v exposure > %(outfile)s ;
-                    echo -e "exposure\\toutcome\\tid.exposure\\tid.outcome\\tsamplesize\\tSNP\\tb\\tse\\tp" | cat - %(outfile)s > %(outfile)s2 ;
-                    mv -f %(outfile)s2 %(outfile)s ;
-                    mv %(outfile)s combined_results/
+    # Convert infiles list to str and remove characters:
+    infiles = remove_str_ruffus_files(infiles)
+
+    statement = ''' cat %(infiles)s | grep -v exposure > %(outfile)s &&
+                    echo -e "exposure\\toutcome\\tid.exposure\\tid.outcome\\tsamplesize\\tSNP\\tb\\tse\\tp" | cat - %(outfile)s > %(outfile)s2 &&
+                    mv -f %(outfile)s2 %(outfile)s &&
+                    mv %(outfile)s output_summary/
                 '''
 
     P.run(statement)
 
 
+@posttask(touch_file('pleiotropy_summary.touch'))
 @follows(presso_summary)
 @merge('*.results_pleiotropy',
        'pleiotropy_summary.tsv'
        )
-def pleiotropy_summary(infile, outfile):
+def pleiotropy_summary(infiles, outfile):
     '''
     Combine all results from the pleiotropy analysis into a single table.
     '''
-    
-    statement = ''' cat %(infile)s | grep -v exposure > %(outfile)s ;;
-                    echo -e "id.exposure\\tid.outcome\\toutcome\\texposure\\tegger_intercept\\tse\\tpval" | cat - %(outfile)s > %(outfile)s2 ;
-                    mv -f %(outfile)s2 %(outfile)s ;
-                    mv %(outfile)s combined_results/                    
+    # Convert infiles list to str and remove characters:
+    infiles = remove_str_ruffus_files(infiles)
+
+    statement = ''' cat %(infiles)s | grep -v exposure > %(outfile)s &&
+                    echo -e "id.exposure\\tid.outcome\\toutcome\\texposure\\tegger_intercept\\tse\\tpval" | cat - %(outfile)s > %(outfile)s2 &&
+                    mv -f %(outfile)s2 %(outfile)s &&
+                    mv %(outfile)s output_summary/
                 '''
 
     P.run(statement)
 
-# TO DO: haven't generated results
+
+@posttask(touch_file('steiger_summary.touch'))
 @follows(pleiotropy_summary)
 @merge('*.results_steiger',
        'steiger_summary.tsv'
        )
-def steiger_summary(infile, outfile):
+def steiger_summary(infiles, outfile):
     '''
     Combine all results from the Steiger directional analysis into a single table.
     '''
+    # Convert infiles list to str and remove characters:
+    infiles = remove_str_ruffus_files(infiles)
+
+    statement = ''' cat %(infiles)s | grep -v exposure > %(outfile)s &&
+                    echo -e "id.exposure\\tid.outcome\\texposure\\toutcome\\tsnp_r2.exposure\\tsnp_r2.outcome\\tcorrect_causal_direction\\tsteiger_pval" | cat - %(outfile)s > %(outfile)s2 &&
+                    mv -f %(outfile)s2 %(outfile)s &&
+                    mv %(outfile)s output_summary/
+                '''
+
+    P.run(statement)
+################
+
+################
+# Clean up files:
+@follows(mkdir('2SMR_analysis'),
+         mkdir('ripgrepped_SNPs'),
+         steiger_summary
+         )
+def cleanup():
+    '''
+    Re-organise files to have separate directories
+    '''
     
-    statement = ''' cat %(infile)s | grep -v exposure > %(outfile)s ;;
-                    echo -e "id.exposure\\tid.outcome\\toutcome\\texposure\\tegger_intercept\\tse\\tpval" | cat - %(outfile)s > %(outfile)s2 ;
-                    mv -f %(outfile)s2 %(outfile)s ;
-                    mv %(outfile)s combined_results/                    
+    statement = ''' mv *results* 2SMR_analysis/ &&
+                    mv *.rg_2SMR_tsv ripgrepped_SNPs/
                 '''
 
     P.run(statement)
@@ -371,7 +435,7 @@ def steiger_summary(infile, outfile):
 
 ################
 # Copy to log enviroment from conda:
-@follows(steiger_summary)
+@follows(cleanup)
 @originate('conda_info.txt')
 def conda_info(outfile):
     '''
@@ -381,9 +445,9 @@ def conda_info(outfile):
     channels = 'conda_channels.txt'
     environment = 'environment.yml'
 
-    statement = '''conda info -a > %(outfile)s ;
-                   conda list -e > %(packages)s ;
-                   conda list --show-channel-urls > %(channels)s ;
+    statement = '''conda info -a > %(outfile)s &&
+                   conda list -e > %(packages)s &&
+                   conda list --show-channel-urls > %(channels)s &&
                    conda env export > %(environment)s
                 '''
     P.run(statement)
@@ -431,12 +495,12 @@ def make_report():
     if (os.path.exists(report_dir) and
             os.path.isdir(report_dir) and not
             os.listdir(report_dir)):
-        statement = '''cp %(report_path)s/* pipeline_report ;
-                       cd {} ;
-                       ln -s ../pipeline.yml . ;
-                       make html ;
-                       ln -sf _build/html/report_pipeline_pq_example.html . ;
-                       make latexpdf ;
+        statement = '''cp %(report_path)s/* pipeline_report &&
+                       cd {} &&
+                       ln -s ../pipeline.yml . &&
+                       make html &&
+                       ln -sf _build/html/report_pipeline_pq_example.html . &&
+                       make latexpdf &&
                        ln -sf _build/latex/pq_example.pdf .
                     '''.format(report_dir)
         E.info('''Building pdf and html versions of your rst files in
@@ -447,11 +511,11 @@ def make_report():
             os.path.isdir(report_dir) and
             os.listdir(report_dir)):
         sys.exit(''' {1} exists, not overwriting. You can manually run:
-                       cd {1} ;
-                       ln -s ../pipeline.yml . ;
-                       make html ;
-                       ln -sf _build/html/report_XXXX.html . ;
-                       make latexpdf ;
+                       cd {1} &&
+                       ln -s ../pipeline.yml . &&
+                       make html &&
+                       ln -sf _build/html/report_XXXX.html . &&
+                       make latexpdf &&
                        ln -sf _build/latex/XXXX.pdf .
                        Or delete the folder and re-run make_report
                  '''.format(report_dir)
@@ -473,7 +537,7 @@ def make_report():
 #       os.path.exists(os.path.join('pipeline_report/_build/latex/',
 #                                   project_name, '.pdf'))):
 #        statement = '''
-#                    ln -s pipeline_report/_build/html/index.hmtl %(project_name)s.html ;
+#                    ln -s pipeline_report/_build/html/index.hmtl %(project_name)s.html &&
 #                    ln -s pipeline_report/_build/latex/%(project_name)s.pdf .
 #                    '''
 #        E.info('''Done, links to the pdf and html versions of your rst files are in the main

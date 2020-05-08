@@ -27,7 +27,7 @@ Usage: run_2SMR.R (--exposure <exposure_file>) (--outcome <outcome_file>) [optio
 Options:
   --exposure <exposure_file>      Exposure input file name
   --outcome <outcome_file>        Outcome input file name
-  -O <OUTPUT_FILE>                Output file name
+  -O <OUTPUT_FILE>                Output file prefix for exposure ("_on_" is added so that eg bmi_on_CHD is used as a prefix)
   --mr-methods <chr>              MR methods "none", "main" or "all" [default: main]
   --run-radial                    Run MR IVW radial method [default: FALSE]
   --run-raps                      Run MR RAPS method [default: FALSE]
@@ -59,7 +59,9 @@ Various plots and tables for 2SMR.
 
 Command example:
 
-  run_2SMR.R --exposure exposure_bmi_TwoSampleMR.tsv --outcome outcome_chd_TwoSampleMR.tsv --run-radial -O test_mr --egger-robust TRUE --egger-penalized TRUE --stop-clumping --OUTLIERtest FALSE --session --mr-methods all
+  run_2SMR.R --exposure exposure_bmi_TwoSampleMR.tsv --outcome outcome_chd_TwoSampleMR.tsv --run-radial -O test --egger-robust TRUE --egger-penalized TRUE --stop-clumping --OUTLIERtest FALSE --session --mr-methods all
+
+Output files when using "-O test" will start as test_on_outcome_chd_TwoSampleMR
 
 Requirements:
 
@@ -242,10 +244,11 @@ if (is.null(args[['-O']])) { # arg is NULL
   print('Output file prefix not given. Using: ')
   print(output_file_prefix)
 } else {
-  output_file_prefix <- as.character(args[['-O']])
+  outfile_name_exp <- as.character(args[['-O']])
   # output_file_prefix <- 'testing'
-  # output_file_prefix <- 'pqtl_AS_23749187'
-  print(sprintf('Output file prefix provided: %s', output_file_prefix))
+  outfile_name_out <- strsplit(outcome_file, "[.]\\s*(?=[^.]+$)", perl = TRUE)[[1]][1]
+  output_file_prefix <- sprintf('%s_on_%s', outfile_name_exp, outfile_name_out)
+  print('Output file prefix not given. Using: ')
   print(output_file_prefix)
 }
 ##########
@@ -833,7 +836,7 @@ if (is.null(p1)) {
                                             align = 'v'
   )
 }
-  filename <- sprintf('mr_plots_%s.svg',
+  filename <- sprintf('%s.results.svg', # suffix has to be '.svg', '.pdf' etc.
                       output_file_prefix
                       )
   print('Saving plots to:')

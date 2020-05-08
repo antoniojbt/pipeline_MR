@@ -33,6 +33,9 @@ https://github.com/katiedavis2918/VitaminD_Autoimmune_Conditions/blob/master/LDL
 
 See also database from IEU or create own LD datasets
 use ieugwasr package
+
+Check LDLink
+Biomart for EAF in populations
 ######
 
 
