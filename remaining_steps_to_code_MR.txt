@@ -6,6 +6,62 @@ Steps to do for complete pipeline MR
 - Manually change headers to 2SMR package for both exposure and outcome files
     + Minimum requirements for each SNP: effect sizes, standard errors and effect alleles
     + Ideally also obtain sample size, non-effect allele and effect allele frequency
+
+
+# Manually change headers to match 2SMR package headers, change manually
+# Set variables:
+FILE= ; PHENO=
+
+# Check for non-printing characters:
+gzcat ${FILE} | head | cat -v
+
+####
+# If there are non-print characters:
+# For carriage returns (eg opening a terminal generated file in Mac and then saving will
+# introduce carriage returns which Unix sees as ^M):
+# From a Mac to Unix try:
+gzcat ${FILE} | tr '\r' '\n' | gzip > ${FILE}.tr.gz &&
+gzcat ${FILE}.tr.gz | head | cat -v
+
+# Remove blank lines:
+gzcat ${FILE}.tr.gz | grep -v -e '^[[:space:]]*$' | gzip > ${FILE}.tr.gz2 &&
+head <(gzcat ${FILE}.tr.gz) <(gzcat ${FILE}.tr.gz2) | cat -v &&
+mv -f ${FILE}.tr.gz2 ${FILE}.tr.gz
+
+# And/or also:
+# Remove any non-printing characters and substitute with a tab:
+LC_ALL=C LC_TYPE=C LANG=C sed $"s/[^[:print:]\t]//g" <(gzcat ${FILE}) | gzip > ${FILE}.np.gz &&
+gzcat ${FILE}.np.gz | head | cat -v
+
+# Enforce all whitespace to tab if needed:
+gzcat ${FILE} | gunexpand -a -t 4 | gzip > ${FILE}.tr.gz &&
+gzcat ${FILE}.tr.gz | head
+####
+
+####
+# If continuing from non-print:
+FILE=${FILE}.tr.gz
+
+# Else:
+# Add Phenotype column first:
+gzcat ${FILE} | gsed "s/$/\t${PHENO}/" | gzip > ${FILE}.pheno.gz &&
+wc -l <(gzcat ${FILE}) <(gzcat ${FILE}.pheno.gz) &&
+head <(gzcat ${FILE}) <(gzcat ${FILE}.pheno.gz)
+# Manually delete .tr.gz file if needed:
+# rm -f ${FILE}
+
+# Get the header and copy another line to modify manually:
+gzcat ${FILE}.pheno.gz | head -n 1 > headers.txt && gzcat ${FILE}.pheno.gz | head -n 1 >> headers.txt &&
+vim headers.txt # Manually modify and add \tPhenotype
+
+# Delete first line:
+gzcat ${FILE}.pheno.gz | sed '1d' > ${FILE}.2SMR_tsv &&
+# Insert 2SMR headers:
+echo -e $(tail -n 1 headers.txt) | cat - ${FILE}.2SMR_tsv > ${FILE}.2SMR_tsv2 &&
+mv -f ${FILE}.2SMR_tsv2 ${FILE}.2SMR_tsv &&
+rm -f ${FILE}.pheno.gz &&
+head ${FILE}.2SMR_tsv
+####
 ######
 
 
@@ -60,9 +116,8 @@ https://github.com/katiedavis2918/VitaminD_Autoimmune_Conditions/blob/master/0.2
 
 #########
 Run 2SMR script with output from steps above
+Run full pipeline
 #########
-
-
 
 
 Later

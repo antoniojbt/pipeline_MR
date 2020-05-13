@@ -141,6 +141,8 @@ PARAMS = P.PARAMS
 # Specific pipeline tasks
 # Tools called need the full path or be directly callable
 
+# TO DO: sort out task completion checking
+
 # Keep as utility function, call manually though:
 @transform('*.csv',
            suffix('.csv'),
@@ -196,27 +198,6 @@ def run_2SMR(outcome, outfile, exposure):
 
     P.run(statement)
 
-@posttask(touch_file('svg_to_pdf.touch'))
-@follows(mkdir('output_summary'), run_2SMR)
-@transform('*.results.svg',
-           suffix('.results.svg'),
-           '.results.pdf'
-           )
-def svg_to_pdf(infile, outfile):
-    '''
-    Convert svg plots to PDFs and merge into a single document.
-    '''
-
-    statement = ''' ln -rs $(grep -L "Insufficient" %(infile)s) -t output_summary/ &&
-                    cd output_summary &&
-                    rsvg-convert -a -f pdf -o %(outfile)s %(infile)s &&
-                    rm -rf %(infile)s &&
-                    ln -rs %(outfile)s -t .. &&
-                    cd ..
-                '''
-
-    P.run(statement)
-
 
 # Remove strings from ruffus infiles when more than one is passed as it will be verbatim
 def remove_str_ruffus_files(infiles):
@@ -230,9 +211,44 @@ def remove_str_ruffus_files(infiles):
     return(infiles)
 
 
-@posttask(touch_file('combine_pdfs.touch'))
+@follows(mkdir('output_summary'), run_2SMR)
+@merge('*.results.svg',
+       'svgs_with_results.txt'
+       )
+def get_svgs(infiles, outfile):
+    '''
+    Get svg plots that have results.
+    '''
+
+    # Convert infiles list to str and remove characters:
+    infiles = remove_str_ruffus_files(infiles)
+  
+    statement = ''' grep -L "Insufficient" %(infiles)s > %(outfile)s &&
+                    cat %(outfile)s | while read line ; do ln -rs ${line} -t output_summary/ ; done
+                '''
+
+    P.run(statement)
+
+
+@follows(get_svgs)
+@transform('output_summary/*.results.svg',
+           suffix('.results.svg'),
+           '.results.pdf'
+           )
+def svg_to_pdf(infile, outfile):
+    '''
+    Convert svg plots to PDFs and merge into a single document.
+    '''
+    jobs_limit = 1 # looks like sometimes PDFs get damaged with multiple
+                   # processors running and writing in the same dir
+    statement = ''' rsvg-convert -a -f pdf -o %(outfile)s %(infile)s
+                '''
+
+    P.run(statement)
+
+
 @follows(svg_to_pdf)
-@merge(svg_to_pdf, 'all_plots.pdf')
+@merge(svg_to_pdf, 'output_summary/all_plots.pdf')
 def combine_pdfs(infiles, summary_file):
     '''
     Combine individual PDFs into a single file.
@@ -242,9 +258,7 @@ def combine_pdfs(infiles, summary_file):
         # Convert infiles list to str and remove characters:
         infiles = remove_str_ruffus_files(infiles)
         
-        statement = ''' cd output_summary &&
-                        pdfunite %(infiles)s %(summary_file)s &&
-                        cd ..
+        statement = ''' pdfunite %(infiles)s %(summary_file)s
                     '''
 
         P.run(statement)                
@@ -253,7 +267,6 @@ def combine_pdfs(infiles, summary_file):
         E.warn('Only one pdf file present, not combining files.')
 
 
-@posttask(touch_file('single_SNP_summary.touch'))
 @follows(combine_pdfs)
 @merge('*.results_single_SNP',
        'mr_single_SNP_summary.tsv'
@@ -274,7 +287,6 @@ def single_SNP_summary(infiles, outfile):
     P.run(statement)
 
 
-@posttask(touch_file('main_mr_summary.touch'))
 @follows(single_SNP_summary)
 @merge('*.results_all_mr',
        'mr_summary.tsv'
@@ -303,7 +315,6 @@ def main_mr_summary(infiles, outfile):
 # TO DO: collect MR RAPS if called for
 
 
-@posttask(touch_file('main_mr_summary.touch'))
 @follows(main_mr_summary)
 @merge('*.results_heterogeneity',
        'heterogeneity_summary.tsv'
@@ -331,7 +342,6 @@ def heterogeneity_summary(infiles, outfile):
 # filename from run_2SMR.R is %s.results_egger_i2
 
 
-@posttask(touch_file('loo_summary.touch'))
 @follows(heterogeneity_summary)
 @merge('*.results_loo',
        'loo_summary.tsv'
@@ -352,7 +362,6 @@ def loo_summary(infiles, outfile):
     P.run(statement)
 
 # TO DO: PRESSO results need to be parsed in run_2SMR
-@posttask(touch_file('presso_summary.touch'))
 @follows(loo_summary)
 @merge('*.results_presso',
        'presso_summary.tsv'
@@ -373,7 +382,6 @@ def presso_summary(infiles, outfile):
     P.run(statement)
 
 
-@posttask(touch_file('pleiotropy_summary.touch'))
 @follows(presso_summary)
 @merge('*.results_pleiotropy',
        'pleiotropy_summary.tsv'
@@ -394,7 +402,6 @@ def pleiotropy_summary(infiles, outfile):
     P.run(statement)
 
 
-@posttask(touch_file('steiger_summary.touch'))
 @follows(pleiotropy_summary)
 @merge('*.results_steiger',
        'steiger_summary.tsv'
@@ -406,13 +413,20 @@ def steiger_summary(infiles, outfile):
     # Convert infiles list to str and remove characters:
     infiles = remove_str_ruffus_files(infiles)
 
-    statement = ''' cat %(infiles)s | grep -v exposure > %(outfile)s &&
-                    echo -e "id.exposure\\tid.outcome\\texposure\\toutcome\\tsnp_r2.exposure\\tsnp_r2.outcome\\tcorrect_causal_direction\\tsteiger_pval" | cat - %(outfile)s > %(outfile)s2 &&
-                    mv -f %(outfile)s2 %(outfile)s &&
-                    mv %(outfile)s output_summary/
-                '''
+    if len(glob.glob('*.results_steiger')) >= 1 :
+        statement = ''' cat %(infiles)s | grep -v exposure > %(outfile)s &&
+                        echo -e "id.exposure\\tid.outcome\\texposure\\toutcome\\tsnp_r2.exposure\\tsnp_r2.outcome\\tcorrect_causal_direction\\tsteiger_pval" | cat - %(outfile)s > %(outfile)s2 &&
+                        mv -f %(outfile)s2 %(outfile)s &&
+                        mv %(outfile)s output_summary/
+                    '''
+        P.run(statement)
 
-    P.run(statement)
+    else:
+        E.warn('No Steiger results to process.')
+
+    return
+
+
 ################
 
 ################
@@ -427,7 +441,9 @@ def cleanup():
     '''
     
     statement = ''' mv *results* 2SMR_analysis/ &&
-                    mv *.rg_2SMR_tsv ripgrepped_SNPs/
+                    mv *.rg_2SMR_tsv ripgrepped_SNPs/ &&
+                    rm -f output_summary/*.results.svg &&
+                    rm -f output_summary/*.results.pdf
                 '''
 
     P.run(statement)

@@ -85,7 +85,7 @@ colnames(mr_raw_data)
 # Get phenotype from file names and add as column for each SNP:
 # ideally only split at '.'
 pheno_name <- strsplit(input_file, split = '[.]')[[1]][1]
-§pheno_name
+§mpheno_name
 
 mr_raw_data$Phenotype <- pheno_name
 mr_raw_data[, 'Phenotype']

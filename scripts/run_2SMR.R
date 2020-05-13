@@ -45,6 +45,7 @@ Options:
   --DISTORTIONtest <BOOL>         TwoSampleMR mr_egger() parameter [default: TRUE]
   --NbDistribution <int>          TwoSampleMR mr_egger() parameter [default: 1000]
   --SignifThreshold <num>         TwoSampleMR mr_egger() parameter [default: 0.05]
+  --outcome-type <chr>            For Steiger test, "quant" or "binary" [default: binary]
   --session                       R session if to be saved [default: FALSE]
   -h --help                       Show this screen
 
@@ -406,6 +407,8 @@ if (mr_methods == 'none') {
       # Run with more methods:
       print('Running MR all methods.')
       # TwoSampleMR::mr_method_list()
+      # TO DO: add single method string option, eg:
+      # methods_list <- c("mr_ivw")
       methods_list <- c("mr_wald_ratio", # single SNP only
                         "mr_two_sample_ml",
                         "mr_egger_regression",
@@ -635,9 +638,17 @@ episcout::epi_write(res_loo, filename)
 
 ##########
 # Test that the exposure is upstream of the outcome:
-if (dim(harmonised)[1] > 1) {
+outcome_type <- as.character(args[['--outcome-type']])
+if ((outcome_type == 'quant') &
+   (all(c('pval.exposure',
+          'pval.outcome',
+          'samplesize.exposure',
+          'samplesize.outcome'
+          ) %in% names(harmonised)
+        )
+    )
+ ) {
   steiger <- TwoSampleMR::directionality_test(harmonised)
-  # steiger
   # Save to file:
   filename <- sprintf('%s.results_steiger',
                       output_file_prefix
@@ -645,61 +656,98 @@ if (dim(harmonised)[1] > 1) {
   print('Saving Steiger test to:')
   print(filename)
   episcout::epi_write(steiger, filename)
-  } else{
-    warning('Too few instruments to run Steiger test, skipping.')
-}
+  } else if (!all(c('pval.exposure',
+                    'pval.outcome',
+                    'samplesize.exposure',
+                    'samplesize.outcome'
+                    ) %in% names(harmonised)
+                  )
+            ) {
+              warning("Missing p-values or sample sizes for exposure and/or outcome, can't calculate.")
+              } else if (outcome_type == 'binary') {
+                warning('Steiger test only calculated for quantitative traits in this script.')
+  # TO DO:
+  # "automated correlations assume quantitative traits. For binary traits
+  #  please pre-calculate in r.exposure and r.outcome e.g. using get_r_from_lor()"
+  }
 ##########
 
 ##########
 # Run MRPRESSO for outlier detection:
 # Input:
-if (dim(harmonised)[1] > 1) {
-  MRPRESSO_input <- data.frame(beta_exposure = harmonised$beta.exposure,
-                               se_exposure = harmonised$se.exposure,
-                               beta_outcome = harmonised$beta.outcome,
-                               se_outcome = harmonised$se.outcome,
-                               row.names = harmonised$SNP
-                               )
-  # names(MRPRESSO_input)
-  # MRPRESSO_input
+MRPRESSO_input <- data.frame(beta_exposure = harmonised$beta.exposure,
+                             se_exposure = harmonised$se.exposure,
+                             beta_outcome = harmonised$beta.outcome,
+                             se_outcome = harmonised$se.outcome,
+                             row.names = harmonised$SNP
+                             )
+# names(MRPRESSO_input)
+# MRPRESSO_input
 
-  # Set up args:
-  OUTLIERtest <- as.logical(args[['--OUTLIERtest']]) # TRUE
-  DISTORTIONtest <- as.logical(args[['--DISTORTIONtest']])# TRUE
-  NbDistribution <- as.numeric(args[['--NbDistribution']]) # 1000
-  SignifThreshold <- as.numeric(args[['--SignifThreshold']]) # 0.05
+# Set up args:
+OUTLIERtest <- as.logical(args[['--OUTLIERtest']]) # TRUE
+DISTORTIONtest <- as.logical(args[['--DISTORTIONtest']])# TRUE
+NbDistribution <- as.numeric(args[['--NbDistribution']]) # 1000
+SignifThreshold <- as.numeric(args[['--SignifThreshold']]) # 0.05
 
-  MRPRESSO <- MRPRESSO::mr_presso(BetaOutcome = "beta_outcome",
-                                  BetaExposure = "beta_exposure",
-                                  SdOutcome = "se_outcome",
-                                  SdExposure = "se_exposure",
-                                  OUTLIERtest = OUTLIERtest, # TRUE
-                                  DISTORTIONtest = DISTORTIONtest, # TRUE
-                                  data = MRPRESSO_input,
-                                  NbDistribution = NbDistribution, # 1000
-                                  SignifThreshold = SignifThreshold # 0.05
-                                  )
-  # MRPRESSO
-  # class(MRPRESSO)
-  # class(MRPRESSO$`Main MR results`)
-  # class(MRPRESSO$`MR-PRESSO results`)
-  # str(MRPRESSO)
-  # Save to file:
-  filename <- sprintf('%s.results_presso',
-                      output_file_prefix
-                      )
-  print('Saving MRPRESSO analysis to:')
-  print(filename)
-  cat('MRPRESSO tests from MRPRESSO package to detect pleiotropy (global test) and outliers (outlier test)\n\n',
-      file = filename
-    )
-  capture.output(MRPRESSO,
-                 file = filename,
-                 append = TRUE
-                 )
-  } else {
-    warning('Too few instruments to run MRPRESSO test, skipping.')
-    }
+MRPRESSO <- function(OUTLIERtest,
+                     DISTORTIONtest,
+                     NbDistribution,
+                     SignifThreshold
+                     ) {
+       out = tryCatch( { MRPRESSO::mr_presso(BetaOutcome = "beta_outcome",
+                                             BetaExposure = "beta_exposure",
+                                             SdOutcome = "se_outcome",
+                                             SdExposure = "se_exposure",
+                                             OUTLIERtest = OUTLIERtest, # TRUE
+                                             DISTORTIONtest = DISTORTIONtest, # TRUE
+                                             data = MRPRESSO_input,
+                                             NbDistribution = NbDistribution, # 1000
+                                             SignifThreshold = SignifThreshold # 0.05
+                                             )
+                          # MRPRESSO
+                          # class(MRPRESSO)
+                          # class(MRPRESSO$`Main MR results`)
+                          # class(MRPRESSO$`MR-PRESSO results`)
+                          # str(MRPRESSO)
+                          # TO DO: parse results properly
+                          # Save to file:
+                          filename <- sprintf('%s.results_presso',
+                                              output_file_prefix
+                                              )
+                          print('Saving MRPRESSO analysis to:')
+                          print(filename)
+                          cat('MRPRESSO tests from MRPRESSO package to detect pleiotropy (global test) and outliers (outlier test)\n\n',
+                          file = filename
+                             )
+                          capture.output(MRPRESSO,
+                                         file = filename,
+                                         append = TRUE
+                                         )
+                          },
+                  error = function(cond) {
+                    message('MRPRESSO error message: ')
+                    message(cond)
+                    # Return value in case of error:
+                    return(NULL)
+                  },
+                  warning = function(cond) {
+                    message('MRPRESSO warning message: ')
+                    message(cond)
+                    # Return value in case of warning:
+                    return(NULL)
+                  },
+                  finally = {
+                    message('MRPRESSO processing done, see results, errors or warnings generated.')
+                  }
+  )
+  return(out)
+  }
+mrpresso_results <- MRPRESSO(OUTLIERtest = OUTLIERtest,
+                             DISTORTIONtest = DISTORTIONtest,
+                             NbDistribution = NbDistribution,
+                             SignifThreshold = SignifThreshold
+                             )
 ##########
 ######################
 
