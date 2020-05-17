@@ -54,8 +54,8 @@ Input files
 ===========
 
 Requires exposure and outcome tab-separated files as required by the R package TwoSampleMR. Additionally:
-  - Outcome file names must have the suffix ".out_2SMR_tsv"
-  - The exposure file name (can contain multiple exposures) must be called "exposure.2SMR_tsv"
+  - Outcome file names must be gzipped and have the suffix ".out_2SMR_tsv.gz"
+  - The exposure file name (can contain multiple exposures) must be called "exposure.2SMR_tsv" and be decompressed.
   - Only one exposure file is accepted but many outcome files can be passed
   - To have phentoype names in plots and tables include a 'Phenotype' column in the exposure file
   - The outcome and exposure files must at least contain:
@@ -107,6 +107,10 @@ import sqlite3
 import cgatcore.iotools as iotools
 import cgatcore.pipeline as P
 import cgatcore.experiment as E
+
+# For gzipped files:
+import binascii
+import gzip
 ################
 
 ################
@@ -143,6 +147,37 @@ PARAMS = P.PARAMS
 
 # TO DO: sort out task completion checking
 
+#####
+# Helper functions:
+# Unzip files if needed:
+def gunzip_files(infile):
+    '''
+    Check if infiles are compressed ('.gz') and uncompress.
+    '''
+
+    with open(infile, 'rb') as f:
+        # gzip files start with this:
+        if binascii.hexlify(f.read(2)) == b'1f8b':
+            f = gzip.open(f, 'rb')
+            file_content = f.read()
+            f.close()
+        else:
+            E.info('File is not gzip compressed')
+    return(file_content)
+
+
+# Remove strings from ruffus infiles when more than one is passed as it will be verbatim
+def remove_str_ruffus_files(infiles):
+    ''' Remove strings which get passed verbatim in ruffus '''
+    infiles = str(infiles)
+    infiles = infiles.replace("'", "")
+    infiles = infiles.replace("[", "")
+    infiles = infiles.replace("]", "")
+    infiles = infiles.replace(",", "")
+    
+    return(infiles)
+
+
 # Keep as utility function, call manually though:
 @transform('*.csv',
            suffix('.csv'),
@@ -152,14 +187,19 @@ def csv_to_tsv(infile, outfile):
     '''
     Convert simple (no quotes) comma separated files to tab separated.
     '''
+    # Gunzip if compressed:
+    #infile = gunzip_files(infile)
+
     # for parsa csv files:
     statement = '''cat %(infile)s | tr ',' '\\t' > %(outfile)s'''
 
     P.run(statement)
+#####
 
 
-@transform('*.out_2SMR_tsv', # exposure and outcome files must have this suffix to  be picked up
-           suffix('.out_2SMR_tsv'),
+#####
+@transform('*.out_2SMR_tsv.gz', # exposure and outcome files must have this suffix to  be picked up
+           suffix('.out_2SMR_tsv.gz'),
            '.rg_2SMR_tsv',
            'exposure_instruments.txt',
            )
@@ -167,8 +207,11 @@ def grep_SNPs(infile1, outfile, infile2):
     '''
     Grep exposure SNPs from outcome files using ripgrep.
     '''
-    statement = ''' head -n 1 %(infile1)s > %(infile1)s.header &&
-                    rg -wf %(infile2)s %(infile1)s | cat %(infile1)s.header - > %(outfile)s && rm -f %(infile1)s.header
+    # Gunzip if compressed:
+    #infile = gunzip_files(infile1)
+    
+    statement = ''' gunzip -c %(infile1)s | head -n 1 > %(infile1)s.header &&
+                    rg -wf %(infile2)s <(gunzip -c %(infile1)s) | cat %(infile1)s.header - > %(outfile)s && rm -f %(infile1)s.header
                 '''
 
     P.run(statement)
@@ -197,18 +240,6 @@ def run_2SMR(outcome, outfile, exposure):
                 '''
 
     P.run(statement)
-
-
-# Remove strings from ruffus infiles when more than one is passed as it will be verbatim
-def remove_str_ruffus_files(infiles):
-    ''' Remove strings which get passed verbatim in ruffus '''
-    infiles = str(infiles)
-    infiles = infiles.replace("'", "")
-    infiles = infiles.replace("[", "")
-    infiles = infiles.replace("]", "")
-    infiles = infiles.replace(",", "")
-    
-    return(infiles)
 
 
 @follows(mkdir('output_summary'), run_2SMR)
@@ -425,8 +456,7 @@ def steiger_summary(infiles, outfile):
         E.warn('No Steiger results to process.')
 
     return
-
-
+#####
 ################
 
 ################
