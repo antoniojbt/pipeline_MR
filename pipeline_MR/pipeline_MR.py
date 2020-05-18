@@ -210,8 +210,12 @@ def grep_SNPs(infile1, outfile, infile2):
     # Gunzip if compressed:
     #infile = gunzip_files(infile1)
     
-    statement = ''' gunzip -c %(infile1)s | head -n 1 > %(infile1)s.header &&
-                    rg -wf %(infile2)s <(gunzip -c %(infile1)s) | cat %(infile1)s.header - > %(outfile)s && rm -f %(infile1)s.header
+    # statement = ''' gunzip -c %(infile1)s | head -n 1 > %(infile1)s.header &&
+    #                 rg -wf %(infile2)s <(gunzip -c %(infile1)s) | cat %(infile1)s.header - > %(outfile)s && rm -f %(infile1)s.header
+    #             '''
+
+    statement = ''' head -n 1 <(gzcat %(infile1)s) > %(infile1)s.header &&
+                    rg -wf %(infile2)s <(gzcat %(infile1)s) | cat %(infile1)s.header - > %(outfile)s && rm -f %(infile1)s.header
                 '''
 
     P.run(statement)
@@ -337,16 +341,28 @@ def main_mr_summary(infiles, outfile):
 
     P.run(statement)
 
-# TO DO:
-# # Get only results with IVW, sort and check how many are significant:
-# #cat single_SNP.summary_tsv | grep Inverse | cut -f1,2,6- | grep -v NA | sort -t$'\\t' -k6 -g > #single_SNP_IVW_sorted.summary_tsv
-# #awk -F '\\t' '{ if ($6 < 0.05) { print } }' single_SNP_IVW_sorted.summary_tsv | wc -l
+
+@follows(main_mr_summary)
+@transform('mr_summary.tsv',
+           suffix('mr_summary.tsv'),
+           'IVW_only.tsv'
+          )
+def IVW_summary(infile, outfile):
+    '''
+    Extract IVW results and sort them by p-value.
+    '''
+    # TO DO: add FDR
+    statement = ''' cat <(head -n 1 %(infile)s) <(grep Inverse %(infile)s) | sort -t$'\\t' -k9 -g > %(outfile)s
+                '''
+
+    P.run(statement)
+
 
 # TO DO: collect MR Radial if called for
 # TO DO: collect MR RAPS if called for
 
 
-@follows(main_mr_summary)
+@follows(IVW_summary)
 @merge('*.results_heterogeneity',
        'heterogeneity_summary.tsv'
        )
@@ -357,7 +373,7 @@ def heterogeneity_summary(infiles, outfile):
     # Convert infiles list to str and remove characters:
     infiles = remove_str_ruffus_files(infiles)
 
-    statement = ''' cat %(infiles)s  | grep -v id.exposure > %(outfile)s &&
+    statement = ''' cat %(infiles)s | grep -v id.exposure > %(outfile)s &&
                     echo -e "id.exposure\\tid.outcome\\toutcome\\texposure\\tmethod\\tQ\\tQ_df\\tQ_pval" | cat - %(outfile)s > %(outfile)s2 &&
                     mv -f %(outfile)s2 %(outfile)s &&
                     mv %(outfile)s output_summary/

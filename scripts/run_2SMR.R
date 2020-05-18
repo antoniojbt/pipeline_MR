@@ -639,37 +639,60 @@ episcout::epi_write(res_loo, filename)
 ##########
 # Test that the exposure is upstream of the outcome:
 outcome_type <- as.character(args[['--outcome-type']])
-if ((outcome_type == 'quant') &
-   (all(c('pval.exposure',
-          'pval.outcome',
-          'samplesize.exposure',
-          'samplesize.outcome'
-          ) %in% names(harmonised)
-        )
-    )
- ) {
-  steiger <- TwoSampleMR::directionality_test(harmonised)
-  # Save to file:
-  filename <- sprintf('%s.results_steiger',
-                      output_file_prefix
-                      )
-  print('Saving Steiger test to:')
-  print(filename)
-  episcout::epi_write(steiger, filename)
-  } else if (!all(c('pval.exposure',
-                    'pval.outcome',
-                    'samplesize.exposure',
-                    'samplesize.outcome'
-                    ) %in% names(harmonised)
-                  )
-            ) {
-              warning("Missing p-values or sample sizes for exposure and/or outcome, can't calculate.")
+
+run_steiger <- function(outcome_type) {
+   out = tryCatch( {
+     if ((outcome_type == 'quant') &
+         (all(c('pval.exposure',
+                'pval.outcome',
+                'samplesize.exposure',
+                'samplesize.outcome'
+                ) %in% names(harmonised)
+             )
+          )
+        ) {
+          steiger <- TwoSampleMR::directionality_test(harmonised)
+          # Save to file:
+          filename <- sprintf('%s.results_steiger',
+                              output_file_prefix
+                              )
+          print('Saving Steiger test to:')
+          print(filename)
+          episcout::epi_write(steiger, filename)
+          } else if (!all(c('pval.exposure',
+                            'pval.outcome',
+                            'samplesize.exposure',
+                            'samplesize.outcome'
+                            ) %in% names(harmonised)
+                          )
+                     ) {
+                warning("Missing p-values or sample sizes for exposure and/or outcome, can't calculate.")
               } else if (outcome_type == 'binary') {
-                warning('Steiger test only calculated for quantitative traits in this script.')
+                     warning('Steiger test only calculated for quantitative traits in this script.')
   # TO DO:
   # "automated correlations assume quantitative traits. For binary traits
   #  please pre-calculate in r.exposure and r.outcome e.g. using get_r_from_lor()"
   }
+},
+                  error = function(cond) {
+                    message('Directionality test error message: ')
+                    message(cond)
+                    # Return value in case of error:
+                    return(NULL)
+                  },
+                  warning = function(cond) {
+                    message('Directionality test warning message: ')
+                    message(cond)
+                    # Return value in case of warning:
+                    return(NULL)
+                  },
+                  finally = {
+                    message('Directionality test processing done, see results, errors or warnings generated.')
+                  }
+  )
+  return(out)
+  }
+steiger_results <- run_steiger(outcome_type = outcome_type)
 ##########
 
 ##########
