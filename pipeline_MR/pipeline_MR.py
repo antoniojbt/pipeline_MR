@@ -145,6 +145,11 @@ PARAMS = P.PARAMS
 # Specific pipeline tasks
 # Tools called need the full path or be directly callable
 
+print('Checking ripgrep')
+import subprocess
+print(subprocess.run(['which', 'rg']))
+
+
 # TO DO: sort out task completion checking
 
 #####

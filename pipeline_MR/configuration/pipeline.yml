@@ -32,6 +32,10 @@ database:
 # https://github.com/AntonioJBT/pipeline_MR/blob/master/scripts/run_2SMR.R
 # --exposure and --outcome are already provided in the pipeline
 # if using -O files will start as eg bmi_on_nameofoutcomefile
+<<<<<<< HEAD
+run_2SMR: -O pqtl --outcome-type 'quant' --mr-methods 'main' --stop-clumping 
+=======
 run_2SMR: -O ville_pqtl --outcome-type 'quant' --stop-clumping --mr-methods 'main'
+>>>>>>> e2b722bf1d2ab5ccca485c52005d1ac44b1d81ce
 
 ######################################################
