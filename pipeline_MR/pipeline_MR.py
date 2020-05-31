@@ -54,8 +54,8 @@ Input files
 ===========
 
 Requires exposure and outcome tab-separated files as required by the R package TwoSampleMR. Additionally:
-  - Outcome file names must have the suffix ".out_2SMR_tsv"
-  - The exposure file name (can contain multiple exposures) must be called "exposure.2SMR_tsv"
+  - Outcome file names must be gzipped and have the suffix ".out_2SMR_tsv.gz"
+  - The exposure file name (can contain multiple exposures) must be called "exposure.2SMR_tsv" and be decompressed.
   - Only one exposure file is accepted but many outcome files can be passed
   - To have phentoype names in plots and tables include a 'Phenotype' column in the exposure file
   - The outcome and exposure files must at least contain:
@@ -107,6 +107,10 @@ import sqlite3
 import cgatcore.iotools as iotools
 import cgatcore.pipeline as P
 import cgatcore.experiment as E
+
+# For gzipped files:
+import binascii
+import gzip
 ################
 
 ################
@@ -148,6 +152,37 @@ print(subprocess.run(['which', 'rg']))
 
 # TO DO: sort out task completion checking
 
+#####
+# Helper functions:
+# Unzip files if needed:
+def gunzip_files(infile):
+    '''
+    Check if infiles are compressed ('.gz') and uncompress.
+    '''
+
+    with open(infile, 'rb') as f:
+        # gzip files start with this:
+        if binascii.hexlify(f.read(2)) == b'1f8b':
+            f = gzip.open(f, 'rb')
+            file_content = f.read()
+            f.close()
+        else:
+            E.info('File is not gzip compressed')
+    return(file_content)
+
+
+# Remove strings from ruffus infiles when more than one is passed as it will be verbatim
+def remove_str_ruffus_files(infiles):
+    ''' Remove strings which get passed verbatim in ruffus '''
+    infiles = str(infiles)
+    infiles = infiles.replace("'", "")
+    infiles = infiles.replace("[", "")
+    infiles = infiles.replace("]", "")
+    infiles = infiles.replace(",", "")
+    
+    return(infiles)
+
+
 # Keep as utility function, call manually though:
 @transform('*.csv',
            suffix('.csv'),
@@ -157,14 +192,19 @@ def csv_to_tsv(infile, outfile):
     '''
     Convert simple (no quotes) comma separated files to tab separated.
     '''
+    # Gunzip if compressed:
+    #infile = gunzip_files(infile)
+
     # for parsa csv files:
     statement = '''cat %(infile)s | tr ',' '\\t' > %(outfile)s'''
 
     P.run(statement)
+#####
 
 
-@transform('*.out_2SMR_tsv', # exposure and outcome files must have this suffix to  be picked up
-           suffix('.out_2SMR_tsv'),
+#####
+@transform('*.out_2SMR_tsv.gz', # exposure and outcome files must have this suffix to  be picked up
+           suffix('.out_2SMR_tsv.gz'),
            '.rg_2SMR_tsv',
            'exposure_instruments.txt',
            )
@@ -172,8 +212,15 @@ def grep_SNPs(infile1, outfile, infile2):
     '''
     Grep exposure SNPs from outcome files using ripgrep.
     '''
-    statement = ''' head -n 1 %(infile1)s > %(infile1)s.header &&
-                    rg -wf %(infile2)s %(infile1)s | cat %(infile1)s.header - > %(outfile)s && rm -f %(infile1)s.header
+    # Gunzip if compressed:
+    #infile = gunzip_files(infile1)
+    
+    # statement = ''' gunzip -c %(infile1)s | head -n 1 > %(infile1)s.header &&
+    #                 rg -wf %(infile2)s <(gunzip -c %(infile1)s) | cat %(infile1)s.header - > %(outfile)s && rm -f %(infile1)s.header
+    #             '''
+
+    statement = ''' head -n 1 <(gzcat %(infile1)s) > %(infile1)s.header &&
+                    rg -wf %(infile2)s <(gzcat %(infile1)s) | cat %(infile1)s.header - > %(outfile)s && rm -f %(infile1)s.header
                 '''
 
     P.run(statement)
@@ -202,18 +249,6 @@ def run_2SMR(outcome, outfile, exposure):
                 '''
 
     P.run(statement)
-
-
-# Remove strings from ruffus infiles when more than one is passed as it will be verbatim
-def remove_str_ruffus_files(infiles):
-    ''' Remove strings which get passed verbatim in ruffus '''
-    infiles = str(infiles)
-    infiles = infiles.replace("'", "")
-    infiles = infiles.replace("[", "")
-    infiles = infiles.replace("]", "")
-    infiles = infiles.replace(",", "")
-    
-    return(infiles)
 
 
 @follows(mkdir('output_summary'), run_2SMR)
@@ -311,16 +346,28 @@ def main_mr_summary(infiles, outfile):
 
     P.run(statement)
 
-# TO DO:
-# # Get only results with IVW, sort and check how many are significant:
-# #cat single_SNP.summary_tsv | grep Inverse | cut -f1,2,6- | grep -v NA | sort -t$'\\t' -k6 -g > #single_SNP_IVW_sorted.summary_tsv
-# #awk -F '\\t' '{ if ($6 < 0.05) { print } }' single_SNP_IVW_sorted.summary_tsv | wc -l
+
+@follows(main_mr_summary)
+@transform('mr_summary.tsv',
+           suffix('mr_summary.tsv'),
+           'IVW_only.tsv'
+          )
+def IVW_summary(infile, outfile):
+    '''
+    Extract IVW results and sort them by p-value.
+    '''
+    # TO DO: add FDR
+    statement = ''' cat <(head -n 1 %(infile)s) <(grep Inverse %(infile)s) | sort -t$'\\t' -k9 -g > %(outfile)s
+                '''
+
+    P.run(statement)
+
 
 # TO DO: collect MR Radial if called for
 # TO DO: collect MR RAPS if called for
 
 
-@follows(main_mr_summary)
+@follows(IVW_summary)
 @merge('*.results_heterogeneity',
        'heterogeneity_summary.tsv'
        )
@@ -331,7 +378,7 @@ def heterogeneity_summary(infiles, outfile):
     # Convert infiles list to str and remove characters:
     infiles = remove_str_ruffus_files(infiles)
 
-    statement = ''' cat %(infiles)s  | grep -v id.exposure > %(outfile)s &&
+    statement = ''' cat %(infiles)s | grep -v id.exposure > %(outfile)s &&
                     echo -e "id.exposure\\tid.outcome\\toutcome\\texposure\\tmethod\\tQ\\tQ_df\\tQ_pval" | cat - %(outfile)s > %(outfile)s2 &&
                     mv -f %(outfile)s2 %(outfile)s &&
                     mv %(outfile)s output_summary/
@@ -430,8 +477,7 @@ def steiger_summary(infiles, outfile):
         E.warn('No Steiger results to process.')
 
     return
-
-
+#####
 ################
 
 ################
