@@ -21,12 +21,13 @@ ieugwasr.
 Usage and options
 =================
 
-Usage: get_ieugwasr.R (--instruments <file>) (--pmid <pmid>) [options]
+Usage: get_ieugwasr.R (--instruments <file>) (--pmid <pmid> | --id <id>) [options]
        get_ieugwasr.R [-h | --help]
 
 Options:
   --instruments <file>   Single column file without header with instruments to search for in outcome data in IEU GWAS database
   --pmid <pmid>          PubMed ID of study to search for as outcome data
+  --id <id>              IEUGWASR ID code (e.g. ieu-a-973 # Ulcerative colitis)
   -O <OUTPUT_FILE>       Output file prefix
   --session              R session if to be saved [default: FALSE]
   -h --help              Show this screen
@@ -130,7 +131,7 @@ if (!is.null(args[['--instruments']])) { # for docopt this will be NULL or chr, 
   instruments <- instruments$V1
   # For tests:
   # setwd('~/Documents/quickstart_projects/projects/MR_pipeline_runs/pipeline_MR_tests/ieugwasr_tests')
-  # instruments_file <- 'cis_pqtl_instruments_SNPs_only.txt'
+  # instruments_file <- '/Users/antoniob/Documents/github.dir/AntonioJBT/pipeline_MR/tests/exposure_bmi_TwoSampleMR.tsv'
   # instruments <- epi_read(instruments_file, header = FALSE)
   # instruments <- instruments$V1
   } else {
@@ -144,21 +145,28 @@ print(instruments_file)
 ##########
 
 ##########
-# Read PMID argument:
+# Read PMID or ID arguments:
 if (!is.null(args[['--pmid']])) { # for docopt this will be NULL or chr, if boolean
   # remove is.null function and test with ==
   pmid <- as.character(args[['--pmid']])
+  print('PMID passed: ')
+  print(pmid)
   # For tests:
   # setwd('~/Documents/quickstart_projects/projects/MR_pipeline_runs/pipeline_MR_tests/ieugwasr_tests')
   # pmid <- '26502338'
+  } else if (!is.null(args[['--id']])) { # for docopt this will be NULL or chr, if boolean
+      # remove is.null function and test with ==
+      id <- as.character(args[['--id']])
+      print('ID passed: ')
+      print(id)
+      # For tests:
+      # setwd('~/Documents/quickstart_projects/projects/MR_pipeline_runs/pipeline_MR_tests/ieugwasr_tests')
+      # id <- 'ieu-a-297'
   } else {
-  # Stop if arguments not given:
-  print('You need to provide a Pubmed ID to search for.')
-  stopifnot(!is.null(args[['--pmid']]))
-  }
-
-print('PMID passed: ')
-print(pmid)
+      # Stop if arguments not given:
+      print('You need to provide a Pubmed ID or IEUGWASR ID to search for.')
+      stopifnot(!is.null(args[['--pmid']]) | !is.null(args[['--id']]))
+      }
 ##########
 
 ##########
@@ -172,7 +180,6 @@ if (is.null(args[['-O']])) { # arg is NULL
     output_prefix <- as.character(args[['-O']])
   # output_file_prefix <- 'testing'
   print(sprintf('Output file name provided: %s', output_prefix))
-  print(output_prefix)
   }
 ##########
 ######################
@@ -195,11 +202,23 @@ if (is.null(ieugwasr::check_access_token())) {
 # Check what studies are available:
 data_available <- ieugwasr::gwasinfo()
 
-# Search outcome by PMID:
+# Search outcome by PMID or ID:
 # pmid <- '31604244'
-get_study <- which(data_available$pmid == pmid)
+# id <- 'ieu-a-297'
+
+if (exists('pmid')) {
+    id_input <- pmid
+    get_study <- which(data_available$pmid == id_input)
+    } else if (exists('id') & !exists('pmid')) {
+        id_input <- id
+        get_study <- which(data_available$id == id_input)
+    } else {
+        print('Pubmed ID or IEUGWASR ID missing or not passed, check arguments.')
+        stopifnot(exists('pmid') | exists('id'))
+        }
+
 if (length(get_study) == 0) {
-  stop('PMID not found in IEU GWAS database. Exiting.')
+  stop('ID passed not found in IEU GWAS database. Exiting.')
   }
 # as.data.frame(data_available[get_study, ])
 outcome_info <- data_available[get_study, ]

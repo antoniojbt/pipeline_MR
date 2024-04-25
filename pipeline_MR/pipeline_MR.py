@@ -145,9 +145,9 @@ PARAMS = P.PARAMS
 # Specific pipeline tasks
 # Tools called need the full path or be directly callable
 
-print('Checking ripgrep')
-import subprocess
-print(subprocess.run(['which', 'rg']))
+#print('Checking ripgrep')
+#import subprocess
+#print(subprocess.run(['which', 'rg']))
 
 
 # TO DO: sort out task completion checking
@@ -157,7 +157,7 @@ print(subprocess.run(['which', 'rg']))
 # Unzip files if needed:
 def gunzip_files(infile):
     '''
-    Check if infiles are compressed ('.gz') and uncompress.
+    Check if files are compressed ('.gz') and uncompress.
     '''
 
     with open(infile, 'rb') as f:
@@ -169,6 +169,28 @@ def gunzip_files(infile):
         else:
             E.info('File is not gzip compressed')
     return(file_content)
+
+
+# Zip files if needed:
+def gzip_files(infile):
+    '''
+    Check if files are uncompressed ('.gz') and compress.
+    '''
+    with open(infile, 'rb') as f:
+        # gzip files start with this:
+        if binascii.hexlify(f.read(2)) == b'1f8b':
+            E.info('File is already gzip compressed')
+        else:
+            # compress a gzip file
+            input = open(infile, 'rb')
+            s = input.read()
+            input.close()
+            
+            outfile = '{}.gz'.format(infile)
+            output = gzip.GzipFile(outfile, 'wb')
+            output.write(s)
+            output.close()
+    return
 
 
 # Remove strings from ruffus infiles when more than one is passed as it will be verbatim
@@ -219,8 +241,8 @@ def grep_SNPs(infile1, outfile, infile2):
     #                 rg -wf %(infile2)s <(gunzip -c %(infile1)s) | cat %(infile1)s.header - > %(outfile)s && rm -f %(infile1)s.header
     #             '''
 
-    statement = ''' head -n 1 <(gzcat %(infile1)s) > %(infile1)s.header &&
-                    rg -wf %(infile2)s <(gzcat %(infile1)s) | cat %(infile1)s.header - > %(outfile)s && rm -f %(infile1)s.header
+    statement = ''' head -n 1 <(zcat < %(infile1)s) > %(infile1)s.header &&
+                    rg -wf %(infile2)s <(zcat < %(infile1)s) | cat %(infile1)s.header - > %(outfile)s && rm -f %(infile1)s.header
                 '''
 
     P.run(statement)
@@ -262,8 +284,11 @@ def get_svgs(infiles, outfile):
 
     # Convert infiles list to str and remove characters:
     infiles = remove_str_ruffus_files(infiles)
-  
-    statement = ''' grep -L "Insufficient" %(infiles)s > %(outfile)s &&
+
+    # || : is the same as "or pass"; place the cmd in parenthesis before piping
+    # 'true' will also return exit code 0 but can be a builtin in some shells
+    # https://unix.stackexchange.com/questions/330660/prevent-grep-from-exiting-in-case-of-nomatch
+    statement = ''' (grep -L "Insufficient" %(infiles)s || :) > %(outfile)s &&
                     cat %(outfile)s | while read line ; do ln -rs ${line} -t output_summary/ ; done
                 '''
 
@@ -348,7 +373,7 @@ def main_mr_summary(infiles, outfile):
 
 
 @follows(main_mr_summary)
-@transform('mr_summary.tsv',
+@transform('output_summary/mr_summary.tsv',
            suffix('mr_summary.tsv'),
            'IVW_only.tsv'
           )
